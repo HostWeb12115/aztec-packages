@@ -981,11 +981,14 @@ export class ProvingOrchestrator implements EpochProver {
         [Attributes.TX_HASH]: txProvingState.processedTx.hash.toString(),
       },
       async (signal: AbortSignal) => {
-        const inputs = txProvingState.getAvmInputs();
+        //const inputs = txProvingState.getAvmInputs();
         try {
+          this.metrics.incAvmFallback();
+          const snapshotAvmPrivateInputs = readAvmMinimalPublicTxInputsFromFile();
+          return await this.prover.getAvmProof(snapshotAvmPrivateInputs, true, signal, provingState.epochNumber);
           // TODO(#14234)[Unconditional PIs validation]: Remove the whole try-catch logic and
           // just keep the next line but removing the second argument (false).
-          return await this.prover.getAvmProof(inputs, false, signal, provingState.epochNumber);
+          //return await this.prover.getAvmProof(inputs, false, signal, provingState.epochNumber);
         } catch (err) {
           if (process.env.AVM_PROVING_STRICT) {
             logger.error(`Error thrown when proving AVM circuit with AVM_PROVING_STRICT on`, err);

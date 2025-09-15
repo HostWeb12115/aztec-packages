@@ -65,17 +65,17 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
         vinfo("Public inputs size mismatch");
         return false;
     }
-    // Public inputs from proof
-    for (size_t i = 0; i < AVM_NUM_PUBLIC_INPUT_COLUMNS; i++) {
-        if (public_inputs[i].size() != AVM_PUBLIC_INPUTS_COLUMNS_MAX_LENGTH) {
-            vinfo("Public input size mismatch");
-            return false;
-        }
-        for (size_t j = 0; j < public_inputs[i].size(); j++) {
-            transcript->add_to_hash_buffer("public_input_" + std::to_string(i) + "_" + std::to_string(j),
-                                           public_inputs[i][j]);
-        }
-    }
+    // // Public inputs from proof
+    // for (size_t i = 0; i < AVM_NUM_PUBLIC_INPUT_COLUMNS; i++) {
+    //     if (public_inputs[i].size() != AVM_PUBLIC_INPUTS_COLUMNS_MAX_LENGTH) {
+    //         vinfo("Public input size mismatch");
+    //         return false;
+    //     }
+    //     for (size_t j = 0; j < public_inputs[i].size(); j++) {
+    //         transcript->add_to_hash_buffer("public_input_" + std::to_string(i) + "_" + std::to_string(j),
+    //                                        public_inputs[i][j]);
+    //     }
+    // }
     VerifierCommitments commitments{ key };
     // Get commitments to VM wires
     for (auto [comm, label] : zip_view(commitments.get_wires(), commitments.get_wires_labels())) {

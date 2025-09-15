@@ -82,7 +82,7 @@ TEST_F(AvmRecursiveTests, GoblinRecursion)
               << "s" << std::endl;
 
     auto [proof, verification_key, public_inputs_cols] = proof_result;
-    proof.insert(proof.begin(), 0); // TODO(#14234)[Unconditional PIs validation]: remove this
+    .insert(proof.begin(), 0); // TODO(#14234)[Unconditional PIs validation]: remove this
 
     // Construct stdlib representations of the proof, public inputs and verification key
     OuterBuilder outer_circuit;
