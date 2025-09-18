@@ -185,7 +185,7 @@ std::pair<tracegen::TraceContainer, PublicInputs> get_minimal_trace_with_pi()
     auto data = read_file("../src/barretenberg/vm2/testing/minimal_tx.testdata.bin");
     AvmProvingInputs inputs = AvmProvingInputs::from(data);
 
-    AvmSimulationHelper simulation_helper(inputs.hints);
+    AvmSimulationHelper simulation_helper(inputs.hints, inputs.publicInputs);
 
     auto events = simulation_helper.simulate();
 
