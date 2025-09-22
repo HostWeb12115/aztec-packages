@@ -8,6 +8,7 @@
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 
 #include "barretenberg/smt_verification/circuit/ultra_circuit.hpp"
+#include "barretenberg/smt_verification/relations/translator_vm/translator_relations.hpp"
 
 using namespace bb;
 
@@ -45,6 +46,13 @@ TEST(smtExample, multiplication_true)
 
     bool res = s.check();
     ASSERT_FALSE(res);
+}
+
+TEST(smtExample, translator_decomposition_relation_print_formulas)
+{
+    smt_solver::Solver s("bce4e33b636e0cf38d13a55c3");
+    smt_translator_relations::instantiate_translator_decomposition_with_ffterm_and_assert(&s);
+    s.print_assertions();
 }
 
 TEST(smtExample, multiplication_true_kind)

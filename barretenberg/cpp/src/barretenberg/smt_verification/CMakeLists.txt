@@ -45,6 +45,9 @@ include_directories(${CVC5_INCLUDE})
 set_target_properties(cvc5-lib PROPERTIES IMPORTED_LOCATION ${CVC5_LIB})
 
 barretenberg_module(smt_verification common stdlib_primitives stdlib_sha256 circuit_checker transcript stdlib_pedersen_commitment cvc5-lib)
+# Ensure translator SMT relation bridge is compiled into the module
+target_sources(smt_verification PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/relations/translator_vm/translator_relations.cpp)
+target_sources(smt_verification_objects PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/relations/translator_vm/translator_relations.cpp)
 # We have no easy way to add a dependency to an external target, we list the built targets explicit. Could be cleaner.
 add_dependencies(smt_verification cvc5)
 add_dependencies(smt_verification_objects cvc5)
