@@ -10,8 +10,8 @@ class AvmSimulationHelper {
   public:
     AvmSimulationHelper(ExecutionHints hints, const PublicInputs& publicInputs)
         : hints(std::move(hints))
-        , publicDataWrites(publicInputs.accumulatedData.publicDataWrites)
-        , publicDataWritesLength(publicInputs.accumulatedDataArrayLengths.publicDataWrites)
+        , public_data_writes(publicInputs.accumulatedData.publicDataWrites)
+        , public_data_writes_length(publicInputs.accumulatedDataArrayLengths.publicDataWrites)
     {}
 
     // Full simulation with event collection.
@@ -27,8 +27,8 @@ class AvmSimulationHelper {
     // The only portion of the public inputs that we need in simulation.
     // Required to generate some ff_gt events at the end of the simulation in order to
     // constrain that leaf slots are sorted in order of public data writes for squashing.
-    std::array<PublicDataWrite, MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX> publicDataWrites;
-    uint32_t publicDataWritesLength;
+    std::array<PublicDataWrite, MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX> public_data_writes;
+    uint32_t public_data_writes_length;
 };
 
 } // namespace bb::avm2
