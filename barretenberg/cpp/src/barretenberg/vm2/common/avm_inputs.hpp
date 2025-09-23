@@ -360,6 +360,8 @@ struct ExecutionHints {
     std::vector<CreateCheckpointHint> createCheckpointHints;
     std::vector<CommitCheckpointHint> commitCheckpointHints;
     std::vector<RevertCheckpointHint> revertCheckpointHints;
+    // Public data writes as hints (for squashing).
+    std::vector<PublicDataWrite> publicDataWritesHints;
 
     bool operator==(const ExecutionHints& other) const = default;
 

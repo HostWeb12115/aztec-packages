@@ -18,6 +18,7 @@ import { PublicDataTreeLeafPreimage } from '../trees/public_data_leaf.js';
 import { GlobalVariables, PublicCallRequestWithCalldata, TreeSnapshots, type Tx } from '../tx/index.js';
 import { AvmCircuitPublicInputs } from './avm_circuit_public_inputs.js';
 import { serializeWithMessagePack } from './message_pack.js';
+import { PublicDataWrite } from './public_data_write.js';
 
 ////////////////////////////////////////////////////////////////////////////
 // Hints (contracts)
@@ -546,6 +547,8 @@ export class AvmExecutionHints {
     public readonly createCheckpointHints: AvmCreateCheckpointHint[] = [],
     public readonly commitCheckpointHints: AvmCommitCheckpointHint[] = [],
     public readonly revertCheckpointHints: AvmRevertCheckpointHint[] = [],
+    // Public data writes as hints (for squashing).
+    public readonly publicDataWritesHints: PublicDataWrite[] = [],
   ) {}
 
   static empty() {
@@ -573,6 +576,7 @@ export class AvmExecutionHints {
         createCheckpointHints: AvmCreateCheckpointHint.schema.array(),
         commitCheckpointHints: AvmCommitCheckpointHint.schema.array(),
         revertCheckpointHints: AvmRevertCheckpointHint.schema.array(),
+        publicDataWritesHints: PublicDataWrite.schema.array(),
       })
       .transform(
         ({
@@ -594,6 +598,7 @@ export class AvmExecutionHints {
           createCheckpointHints,
           commitCheckpointHints,
           revertCheckpointHints,
+          publicDataWritesHints,
         }) =>
           new AvmExecutionHints(
             globalVariables,
@@ -614,6 +619,7 @@ export class AvmExecutionHints {
             createCheckpointHints,
             commitCheckpointHints,
             revertCheckpointHints,
+            publicDataWritesHints,
           ),
       );
   }
@@ -623,7 +629,13 @@ export class AvmCircuitInputs {
   constructor(
     public readonly hints: AvmExecutionHints,
     public publicInputs: AvmCircuitPublicInputs,
-  ) {}
+  ) {
+    // We set the public data writes hints from the public inputs.
+    hints.publicDataWritesHints.splice(0); // Delete all existing hints just in case.
+    for (let i = 0; i < publicInputs.accumulatedDataArrayLengths.publicDataWrites; i++) {
+      hints.publicDataWritesHints.push(publicInputs.accumulatedData.publicDataWrites[i]);
+    }
+  }
 
   static empty() {
     return new AvmCircuitInputs(AvmExecutionHints.empty(), AvmCircuitPublicInputs.empty());
