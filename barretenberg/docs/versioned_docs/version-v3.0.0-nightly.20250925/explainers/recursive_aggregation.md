@@ -45,11 +45,11 @@ In this case, while `n` is not `1`, this function will keep calling itself until
        Yes     No --------
 ```
 
-In Zero-Knowledge, recursion has some similarities.
+In Zero-Knowledge, proof recursion refers to the act of verifying a child proof inside of parent proof.
 
-It is not a Noir function calling itself, but a proof being used as an input to another circuit. In short, you verify one proof *inside* another proof, returning the proof that both proofs are valid.
+It's important to distinguish proof recursion from the idea of a Noir function that calls itself (regular recursion). In proof recursion, one or more proofs are used as an input to a circuit. By verifying proof(s) *inside* another proof you receive proofs that imply the correctness of their proof inputs.
 
-This means that, given enough computational resources, you can prove the correctness of any arbitrary number of proofs in a single proof. This could be useful to design state channels (for which a common example would be [Bitcoin's Lightning Network](https://en.wikipedia.org/wiki/Lightning_Network)), to save on gas costs by settling one proof onchain, or simply to make business logic less dependent on a consensus mechanism.
+While Zero-Knowledge circuits can prove any number of statements about any number of inputs in theory, proof recursion has powerful applications. An iterative process can be represented as steps of recursion, producing proofs that imply all previous steps. This could be useful to design state channels (for which a common example would be [Bitcoin's Lightning Network](https://en.wikipedia.org/wiki/Lightning_Network)), for efficient proof aggregation (saving on verifier costs, e.g. on-chain), or to build consensus mechanisms that don't rely on re-execution.
 
 ## Examples
 

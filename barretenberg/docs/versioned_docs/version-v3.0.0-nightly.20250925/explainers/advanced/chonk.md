@@ -8,10 +8,10 @@ sidebar_position: 1
 
 ![CHONK Overview](https://hackmd.io/_uploads/BkpsblXEgg.jpg)
 
-Aztec's goal is to enable private verifiable execution of smart contracts. This motivates a proving system design where:
+Aztec's goal is to enable verifiable execution of private smart contracts. This motivates a proving system design where:
 
 - Proofs can be generated with relatively low memory, so that the prover can be run on a phone or browser.
-- Proofs can efficiently incorporate many layers of recursion - as the claims being proven are of a recursive nature - one contract function calls another which calls another etc.
+- Proofs can efficiently incorporate many layers of recursion, so that function calls are cheap to compose together.
 
 The second goal indirectly supports the first - efficient recursion goes hand in hand with low memory proving, as statements can be decomposed via recursion into smaller statements that require less prover memory.
 
