@@ -124,7 +124,7 @@ So, taking the example of Alice and Bob and their guessing game:
 - Alice makes her guess. Her proof is *not* recursive: it doesn't verify any proof within it! It's just a standard `assert(x != y)` circuit
 - Bob verifies Alice's proof and makes his own guess. In this circuit, he doesn't exactly *prove* the verification of Alice's proof. Instead, he *aggregates* his proof to Alice's proof. The actual verification is done when the full proof is verified, for example when using `nargo verify` or through the verifier smart contract.
 
-We can imagine recursive proofs a [relay race](https://en.wikipedia.org/wiki/Relay_race). The first runner doesn't have to receive the baton from anyone else, as he/she already starts with it. But when his/her turn is over, the next runner needs to receive it, run a bit more, and pass it along. Even though every runner could theoretically verify the baton mid-run (why not? 🏃🔍), only at the end of the race does the referee verify that the whole race is valid.
+We can imagine recursive proofs as a [relay race](https://en.wikipedia.org/wiki/Relay_race). The first runner doesn't have to receive the baton from anyone else, as he/she already starts with it. But when his/her turn is over, the next runner needs to receive it, run a bit more, and pass it along. Even though every runner could theoretically verify the baton mid-run (why not? 🏃🔍), only at the end of the race does the referee verify that the whole race is valid.
 
 :::
 
