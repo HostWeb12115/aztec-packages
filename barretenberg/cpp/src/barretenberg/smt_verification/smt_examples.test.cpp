@@ -48,12 +48,7 @@ TEST(smtExample, multiplication_true)
     ASSERT_FALSE(res);
 }
 
-TEST(smtExample, translator_decomposition_relation_print_formulas)
-{
-    smt_solver::Solver s("bce4e33b636e0cf38d13a55c3");
-    smt_translator_relations::instantiate_translator_decomposition_with_ffterm_and_assert(&s);
-    s.print_assertions();
-}
+// translator relation tests moved to translator_relation_verification.test.cpp
 
 TEST(smtExample, multiplication_true_kind)
 {

@@ -55,7 +55,7 @@ const SolverConfiguration ultra_solver_config = {
 };
 
 const SolverConfiguration split_gb_solver_config = {
-    /*produce_models=*/true,          /*timeout=*/0,      /*debug=*/0,
+    /*produce_models=*/true,          /*timeouIt=*/0,     /*debug=*/0,
     /*ff_elim_disjunctive_bit=*/true, /*ff_bitsum=*/true, /*ff_solver=*/"split",
     /*lookup_enabled=*/true
 };
