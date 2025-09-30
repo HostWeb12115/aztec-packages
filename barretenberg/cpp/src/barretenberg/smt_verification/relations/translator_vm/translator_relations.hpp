@@ -58,4 +58,12 @@ void assert_formulas_zero(smt_terms::Solver* solver, const std::vector<smt_terms
 // Reset internal solver state (useful for tests)
 void reset_solver_state();
 
+// Instantiate TranslatorOpcodeConstraintRelationImpl with FF terms and return formulas, variables, and names
+// WITHOUT asserting them to the solver. Allows setting lagrange_mini_masking and scaling_factor.
+void instantiate_translator_opcode_constraint_with_ffterm_return_formulas(smt_terms::Solver* solver,
+                                                                          const std::string& prefix,
+                                                                          std::vector<smt_terms::STerm>& out_formulas,
+                                                                          std::vector<smt_terms::STerm>& out_vars,
+                                                                          std::vector<std::string>& out_names);
+
 } // namespace smt_translator_relations

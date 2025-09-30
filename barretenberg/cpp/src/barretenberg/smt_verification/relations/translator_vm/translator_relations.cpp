@@ -1,5 +1,6 @@
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/relations/translator_vm/translator_decomposition_relation_impl.hpp"
+#include "barretenberg/relations/translator_vm/translator_extra_relations_impl.hpp"
 #include "barretenberg/smt_verification/terms/term.hpp"
 #include "barretenberg/translator_vm/translator_flavor.hpp"
 #include <string>
@@ -20,6 +21,8 @@ struct SymFF {
         : t(v)
     {}
     explicit SymFF(const uint64_t v) { t = FFConst(std::to_string(v), g_solver, 10); }
+    explicit SymFF(const int64_t v) { t = FFConst(std::to_string(v), g_solver, 10); }
+    explicit SymFF(const int v) { t = FFConst(std::to_string(v), g_solver, 10); }
     explicit SymFF(const uint256_t& v) { t = FFConst(bb::fr(v), g_solver); }
 
     SymFF operator+(const SymFF& o) const { return SymFF(t + o.t); }
@@ -972,6 +975,78 @@ void reset_solver_state()
 {
     using namespace detail;
     g_solver = nullptr;
+}
+
+void instantiate_translator_opcode_constraint_with_ffterm_return_formulas(Solver* solver,
+                                                                          const std::string& prefix,
+                                                                          std::vector<STerm>& out_formulas,
+                                                                          std::vector<STerm>& out_vars,
+                                                                          std::vector<std::string>& out_names)
+{
+    using namespace detail;
+    g_solver = solver;
+
+    // Create symbolic AllEntities structure for TranslatorOpcodeConstraintRelation
+    using Flavor = bb::TranslatorFlavor;
+    using AllEntities = typename Flavor::AllEntities<SymFF>;
+
+    AllEntities symbolic_all_entities;
+    std::vector<std::reference_wrapper<SymFF>> refs;
+    std::vector<std::string> names;
+
+    // Collect all entity names and references
+    for (auto [name, entity] : zip_view(symbolic_all_entities.get_labels(), symbolic_all_entities.get_all())) {
+        names.push_back(name);
+        refs.push_back(std::ref(entity));
+    }
+
+    // Create symbolic variables with prefix
+    for (size_t i = 0; i < refs.size(); ++i) {
+        std::string var_name = prefix.empty() ? names[i] : (prefix + "_" + names[i]);
+
+        // Check if this is lagrange_mini_masking or a scaling factor (we'll set these explicitly later)
+        bool is_lagr_mini = false;
+        {
+            static const std::string target = "lagrange_mini_masking";
+            if (names[i] == target) {
+                is_lagr_mini = true;
+            }
+        }
+
+        if (is_lagr_mini) {
+            // Will be set to 0 by the test
+            STerm var = FFVar(var_name, solver);
+            refs[i].get() = SymFF(var);
+            out_vars.push_back(var);
+            out_names.push_back(var_name);
+        } else {
+            STerm var = FFVar(var_name, solver);
+            refs[i].get() = SymFF(var);
+            out_vars.push_back(var);
+            out_names.push_back(var_name);
+        }
+    }
+
+    // Create accumulators for 5 subrelations
+    std::tuple<UniAcc<6>, UniAcc<6>, UniAcc<6>, UniAcc<6>, UniAcc<6>> acc;
+
+    // Create scaling factor = 1
+    SymFF scaling_factor(FFConst("1", solver, 10));
+
+    // Accumulate the opcode constraint relation
+    using OpcodeRelation = bb::TranslatorOpcodeConstraintRelationImpl<SymFF>;
+    using RelationParams = bb::RelationParameters<SymFF>;
+    RelationParams params;
+    OpcodeRelation::template accumulate<decltype(acc), AllEntities, RelationParams>(
+        acc, symbolic_all_entities, params, scaling_factor);
+
+    // Extract the formulas from the 5 subrelations
+    out_formulas.clear();
+    out_formulas.push_back(std::get<0>(acc).val.t);
+    out_formulas.push_back(std::get<1>(acc).val.t);
+    out_formulas.push_back(std::get<2>(acc).val.t);
+    out_formulas.push_back(std::get<3>(acc).val.t);
+    out_formulas.push_back(std::get<4>(acc).val.t);
 }
 
 } // namespace smt_translator_relations
