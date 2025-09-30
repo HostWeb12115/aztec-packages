@@ -26,6 +26,28 @@ uint256_t uint256_from_decimal_string(const std::string& dec_str)
 }
 
 /**
+ * @brief Helper function to convert uint256_t to decimal string
+ */
+std::string uint256_to_decimal_string(const uint256_t& value)
+{
+    if (value == 0) {
+        return "0";
+    }
+
+    std::string result;
+    uint256_t temp = value;
+    uint256_t base = 10;
+
+    while (temp > 0) {
+        uint256_t digit = temp % base;
+        result = char('0' + static_cast<uint64_t>(digit.data[0])) + result;
+        temp = temp / base;
+    }
+
+    return result;
+}
+
+/**
  * @brief Decomposition mapping for translator VM limbs
  *
  * This structure documents which relation index corresponds to which limb decomposition,
@@ -92,6 +114,102 @@ std::vector<LimbDecomposition> get_translator_decomposition_map()
           4,
           "rc_3_shift * 64 = rc_4_shift (8-bit top limb)",
           37 },
+
+        // Z decompositions (relations 8-11)
+        { "z_low_limbs",
+          8,
+          { "z_low_limbs_range_constraint_0",
+            "z_low_limbs_range_constraint_1",
+            "z_low_limbs_range_constraint_2",
+            "z_low_limbs_range_constraint_3",
+            "z_low_limbs_range_constraint_4",
+            "z_low_limbs_range_constraint_tail" },
+          5,
+          "rc_4 * 4 = tail (12-bit top microlimb)",
+          30 },
+
+        { "z_low_limbs_shift",
+          9,
+          { "z_low_limbs_range_constraint_0_shift",
+            "z_low_limbs_range_constraint_1_shift",
+            "z_low_limbs_range_constraint_2_shift",
+            "z_low_limbs_range_constraint_3_shift",
+            "z_low_limbs_range_constraint_4_shift",
+            "z_low_limbs_range_constraint_tail_shift" },
+          5,
+          "rc_4_shift * 4 = tail_shift (12-bit top microlimb)",
+          31 },
+
+        { "z_high_limbs",
+          10,
+          { "z_high_limbs_range_constraint_0",
+            "z_high_limbs_range_constraint_1",
+            "z_high_limbs_range_constraint_2",
+            "z_high_limbs_range_constraint_3",
+            "z_high_limbs_range_constraint_4",
+            "z_high_limbs_range_constraint_tail" },
+          5,
+          "rc_4 * 1024 = tail (4-bit top microlimb, 60-bit limb)",
+          32 },
+
+        { "z_high_limbs_shift",
+          11,
+          { "z_high_limbs_range_constraint_0_shift",
+            "z_high_limbs_range_constraint_1_shift",
+            "z_high_limbs_range_constraint_2_shift",
+            "z_high_limbs_range_constraint_3_shift",
+            "z_high_limbs_range_constraint_4_shift",
+            "z_high_limbs_range_constraint_tail_shift" },
+          5,
+          "rc_4_shift * 1024 = tail_shift (4-bit top microlimb, 60-bit limb)",
+          33 },
+
+        // P_y decompositions (relations 4-7)
+        { "p_y_low_limbs",
+          4,
+          { "p_y_low_limbs_range_constraint_0",
+            "p_y_low_limbs_range_constraint_1",
+            "p_y_low_limbs_range_constraint_2",
+            "p_y_low_limbs_range_constraint_3",
+            "p_y_low_limbs_range_constraint_4",
+            "p_y_low_limbs_range_constraint_tail" },
+          5,
+          "rc_4 * 4 = tail",
+          26 },
+
+        { "p_y_low_limbs_shift",
+          5,
+          { "p_y_low_limbs_range_constraint_0_shift",
+            "p_y_low_limbs_range_constraint_1_shift",
+            "p_y_low_limbs_range_constraint_2_shift",
+            "p_y_low_limbs_range_constraint_3_shift",
+            "p_y_low_limbs_range_constraint_4_shift",
+            "p_y_low_limbs_range_constraint_tail_shift" },
+          5,
+          "rc_4_shift * 4 = tail_shift",
+          27 },
+
+        { "p_y_high_limbs",
+          6,
+          { "p_y_high_limbs_range_constraint_0",
+            "p_y_high_limbs_range_constraint_1",
+            "p_y_high_limbs_range_constraint_2",
+            "p_y_high_limbs_range_constraint_3",
+            "p_y_high_limbs_range_constraint_4",
+            "p_y_high_limbs_range_constraint_tail" },
+          5,
+          "rc_4 * 4 = tail",
+          28 },
+
+        { "p_y_high_limbs_shift",
+          7,
+          { "p_y_high_limbs_range_constraint_0_shift",
+            "p_y_high_limbs_range_constraint_1_shift",
+            "p_y_high_limbs_range_constraint_2_shift",
+            "p_y_high_limbs_range_constraint_3_shift" },
+          4,
+          "rc_3_shift * 64 = rc_4_shift (8-bit top limb)",
+          29 },
 
         // P_x decompositions (relations 12-15)
         { "p_x_low_limbs",
@@ -254,7 +372,7 @@ void test_limb_uniqueness_and_maximum(smt_solver::Solver& s,
     out_unique = s.check() ? "NOT_UNIQUE" : "UNIQUE";
     s.pop();
 
-    // Test maximum value
+    // Test maximum value using binary search on the limb value
     s.push();
 
     std::vector<smt_terms::STerm> fm, vm;
@@ -266,33 +384,81 @@ void test_limb_uniqueness_and_maximum(smt_solver::Solver& s,
 
     auto max_limb = find_mapped_limb_variables(vm, nm, decomp, "M");
 
-    // Set all RCs to maximum (except tail which is constrained by relation)
-    smt_terms::STerm max_14 = smt_terms::FFIConst("16383", &s, 10);
-    // For limbs with 5 microlimbs, set first 4 to max (rc_4 and tail are constrained)
-    // For limbs with 4 microlimbs (top 50-bit limbs), set first 3 to max (rc_3 and rc_4 are constrained)
-    size_t rcs_to_max = decomp.num_microlimbs == 5 ? 4 : 3;
-    for (size_t i = 0; i < rcs_to_max && i < max_limb.rc_vars.size(); ++i) {
+    // Search for maximum value (we know it should be a power of 2 minus one, so if it's not, we fail)
+    // Start with theoretical maximum based on limb structure (68 bits for most limbs)
+    uint256_t max_found = 0;
+
+    // First, find an upper bound by trying powers of 2 (starting from 80 bits down to 1)
+    for (int bits = 80; bits >= 1; bits--) {
+        s.push();
+        uint256_t test_val = (uint256_t(1) << static_cast<uint64_t>(bits)) - 1;
+        std::string test_str = uint256_to_decimal_string(test_val);
+        smt_terms::STerm test_term = smt_terms::FFIConst(test_str, &s, 10);
         s.assertFormula(s.term_manager.mkTerm(
-            cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(max_limb.rc_vars[i]), static_cast<cvc5::Term>(max_14) }));
+            cvc5::Kind::GEQ, { static_cast<cvc5::Term>(max_limb.limb_var), static_cast<cvc5::Term>(test_term) }));
+
+        if (s.check()) {
+            max_found = test_val;
+            s.pop();
+            break;
+        }
+        s.pop();
     }
 
-    if (s.check()) {
-        uint256_t max_val = uint256_from_decimal_string(s.get(max_limb.limb_var));
-        std::ostringstream oss;
-        oss << max_val; // uint256_t already outputs with 0x prefix
-        out_max = oss.str();
-    } else {
-        out_max = "UNSAT";
-    }
+    // Check that this value is indeed the maximum
+    s.push();
+    uint256_t test_val = max_found + 1;
+    std::string test_str = uint256_to_decimal_string(test_val);
+    smt_terms::STerm test_term = smt_terms::FFIConst(test_str, &s, 10);
+    s.assertFormula(s.term_manager.mkTerm(
+        cvc5::Kind::GEQ, { static_cast<cvc5::Term>(max_limb.limb_var), static_cast<cvc5::Term>(test_term) }));
+    ASSERT_FALSE(s.check());
+    s.pop();
 
     s.pop();
+    out_max = uint256_to_decimal_string(max_found);
 }
 
-void test_x_lo_x_hi_uniqueness_and_maximum(smt_solver::Solver& s,
-                                           const std::string& var_name,
-                                           std::string& out_unique,
-                                           std::string& out_max)
+void test_lo_hi_uniqueness_and_maximum(smt_solver::Solver& s,
+                                       const std::string& var_name,
+                                       const std::vector<uint256_t>& limb_max_values,
+                                       std::string& out_unique,
+                                       std::string& out_max)
 {
+    // Determine coordinate (x, y, or z) and level (lo or hi, or 1 or 2 for z)
+    bool is_x = (var_name == "x_lo" || var_name == "x_hi");
+    bool is_z = (var_name == "z1" || var_name == "z2");
+    bool is_low = (var_name == "x_lo" || var_name == "y_lo" || var_name == "z1");
+
+    std::string coord;
+    size_t lo_relation, hi_relation;
+    std::string lo_var_name, hi_var_name;
+    std::string low_limb_name, low_limb_shift_name, high_limb_name, high_limb_shift_name;
+
+    if (is_z) {
+        coord = "z";
+        lo_relation = 46;               // z1
+        hi_relation = 47;               // z2
+        lo_var_name = "x_hi_z_1_shift"; // z1 is stored here
+        hi_var_name = "y_lo_z_2_shift"; // z2 is stored here
+        low_limb_name = "z_low_limbs";
+        low_limb_shift_name = "z_low_limbs_shift";
+        high_limb_name = "z_high_limbs";
+        high_limb_shift_name = "z_high_limbs_shift";
+    } else {
+        coord = is_x ? "x" : "y";
+        // x: lo=42, hi=43; y: lo=44, hi=45
+        lo_relation = is_x ? 42 : 44;
+        hi_relation = is_x ? 43 : 45;
+        // x_lo=x_lo_y_hi, x_hi=x_hi_z_1, y_lo=y_lo_z_2, y_hi=x_lo_y_hi_shift
+        lo_var_name = is_x ? "x_lo_y_hi" : "y_lo_z_2";
+        hi_var_name = is_x ? "x_hi_z_1" : "x_lo_y_hi_shift";
+        low_limb_name = "p_" + coord + "_low_limbs";
+        low_limb_shift_name = "p_" + coord + "_low_limbs_shift";
+        high_limb_name = "p_" + coord + "_high_limbs";
+        high_limb_shift_name = "p_" + coord + "_high_limbs_shift";
+    }
+
     // Test uniqueness
     s.push();
 
@@ -302,115 +468,158 @@ void test_x_lo_x_hi_uniqueness_and_maximum(smt_solver::Solver& s,
     smt_translator_relations::instantiate_translator_decomposition_with_iterm_return_formulas(&s, "V1", f1, v1, n1);
     smt_translator_relations::instantiate_translator_decomposition_with_iterm_return_formulas(&s, "V2", f2, v2, n2);
 
-    // Assert decomposition relations (Relation 42 & 43):
-    // x_lo_y_hi = p_x_low_limbs + p_x_low_limbs_shift * 2^68
-    // x_hi_z_1 = p_x_high_limbs + p_x_high_limbs_shift * 2^68
-    smt_translator_relations::assert_formulas_zero(&s, { f1[42], f1[43], f2[42], f2[43] });
+    // Assert decomposition relations for the composite values only (not the limb decompositions)
+    smt_translator_relations::assert_formulas_zero(
+        &s, { f1[lo_relation], f1[hi_relation], f2[lo_relation], f2[hi_relation] });
 
     // Find the variables
-    smt_terms::STerm v1_low, v1_low_shift, v1_high, v1_high_shift, v1_x_lo, v1_x_hi;
-    smt_terms::STerm v2_low, v2_low_shift, v2_high, v2_high_shift, v2_x_lo, v2_x_hi;
+    smt_terms::STerm v1_low, v1_low_shift, v1_high, v1_high_shift, v1_lo, v1_hi;
+    smt_terms::STerm v2_low, v2_low_shift, v2_high, v2_high_shift, v2_lo, v2_hi;
 
     for (size_t i = 0; i < n1.size(); ++i) {
-        if (n1[i] == "V1_p_x_low_limbs")
+        if (n1[i] == "V1_" + low_limb_name)
             v1_low = v1[i];
-        if (n1[i] == "V1_p_x_low_limbs_shift")
+        if (n1[i] == "V1_" + low_limb_shift_name)
             v1_low_shift = v1[i];
-        if (n1[i] == "V1_p_x_high_limbs")
+        if (n1[i] == "V1_" + high_limb_name)
             v1_high = v1[i];
-        if (n1[i] == "V1_p_x_high_limbs_shift")
+        if (n1[i] == "V1_" + high_limb_shift_name)
             v1_high_shift = v1[i];
-        if (n1[i] == "V1_x_lo_y_hi")
-            v1_x_lo = v1[i];
-        if (n1[i] == "V1_x_hi_z_1")
-            v1_x_hi = v1[i];
-        if (n2[i] == "V2_p_x_low_limbs")
+        if (n1[i] == "V1_" + lo_var_name)
+            v1_lo = v1[i];
+        if (n1[i] == "V1_" + hi_var_name)
+            v1_hi = v1[i];
+
+        if (n2[i] == "V2_" + low_limb_name)
             v2_low = v2[i];
-        if (n2[i] == "V2_p_x_low_limbs_shift")
+        if (n2[i] == "V2_" + low_limb_shift_name)
             v2_low_shift = v2[i];
-        if (n2[i] == "V2_p_x_high_limbs")
+        if (n2[i] == "V2_" + high_limb_name)
             v2_high = v2[i];
-        if (n2[i] == "V2_p_x_high_limbs_shift")
+        if (n2[i] == "V2_" + high_limb_shift_name)
             v2_high_shift = v2[i];
-        if (n2[i] == "V2_x_lo_y_hi")
-            v2_x_lo = v2[i];
-        if (n2[i] == "V2_x_hi_z_1")
-            v2_x_hi = v2[i];
+        if (n2[i] == "V2_" + lo_var_name)
+            v2_lo = v2[i];
+        if (n2[i] == "V2_" + hi_var_name)
+            v2_hi = v2[i];
     }
 
-    // Constrain limbs to discovered maximum ranges
+    // Constrain limbs to their discovered maximum values (bottom-up approach)
+    // limb_max_values indices:
+    // [0-3]: z limbs (z_low_limbs, z_low_limbs_shift, z_high_limbs, z_high_limbs_shift)
+    // [4-7]: p_y limbs (p_y_low_limbs, p_y_low_limbs_shift, p_y_high_limbs, p_y_high_limbs_shift)
+    // [8-11]: p_x limbs (p_x_low_limbs, p_x_low_limbs_shift, p_x_high_limbs, p_x_high_limbs_shift)
+
+    size_t base_idx = is_z ? 0 : (is_x ? 8 : 4);
+
     smt_terms::STerm zero = smt_terms::FFIConst("0", &s, 10);
-    smt_terms::STerm max_68bit = smt_terms::FFIConst("295147905179352825855", &s, 10); // 2^68 - 1
-    smt_terms::STerm max_50bit = smt_terms::FFIConst("1125899906842623", &s, 10);      // 2^50 - 1
+    smt_terms::STerm max_low = smt_terms::FFIConst(uint256_to_decimal_string(limb_max_values[base_idx + 0]), &s, 10);
+    smt_terms::STerm max_low_shift =
+        smt_terms::FFIConst(uint256_to_decimal_string(limb_max_values[base_idx + 1]), &s, 10);
+    smt_terms::STerm max_high = smt_terms::FFIConst(uint256_to_decimal_string(limb_max_values[base_idx + 2]), &s, 10);
+    smt_terms::STerm max_high_shift =
+        smt_terms::FFIConst(uint256_to_decimal_string(limb_max_values[base_idx + 3]), &s, 10);
 
     // V1 limb range constraints
     s.assertFormula(
         s.term_manager.mkTerm(cvc5::Kind::GEQ, { static_cast<cvc5::Term>(v1_low), static_cast<cvc5::Term>(zero) }));
-    s.assertFormula(s.term_manager.mkTerm(cvc5::Kind::LEQ,
-                                          { static_cast<cvc5::Term>(v1_low), static_cast<cvc5::Term>(max_68bit) }));
+    s.assertFormula(
+        s.term_manager.mkTerm(cvc5::Kind::LEQ, { static_cast<cvc5::Term>(v1_low), static_cast<cvc5::Term>(max_low) }));
     s.assertFormula(s.term_manager.mkTerm(cvc5::Kind::GEQ,
                                           { static_cast<cvc5::Term>(v1_low_shift), static_cast<cvc5::Term>(zero) }));
     s.assertFormula(s.term_manager.mkTerm(
-        cvc5::Kind::LEQ, { static_cast<cvc5::Term>(v1_low_shift), static_cast<cvc5::Term>(max_68bit) }));
+        cvc5::Kind::LEQ, { static_cast<cvc5::Term>(v1_low_shift), static_cast<cvc5::Term>(max_low_shift) }));
     s.assertFormula(
         s.term_manager.mkTerm(cvc5::Kind::GEQ, { static_cast<cvc5::Term>(v1_high), static_cast<cvc5::Term>(zero) }));
     s.assertFormula(s.term_manager.mkTerm(cvc5::Kind::LEQ,
-                                          { static_cast<cvc5::Term>(v1_high), static_cast<cvc5::Term>(max_68bit) }));
+                                          { static_cast<cvc5::Term>(v1_high), static_cast<cvc5::Term>(max_high) }));
     s.assertFormula(s.term_manager.mkTerm(cvc5::Kind::GEQ,
                                           { static_cast<cvc5::Term>(v1_high_shift), static_cast<cvc5::Term>(zero) }));
     s.assertFormula(s.term_manager.mkTerm(
-        cvc5::Kind::LEQ, { static_cast<cvc5::Term>(v1_high_shift), static_cast<cvc5::Term>(max_50bit) }));
+        cvc5::Kind::LEQ, { static_cast<cvc5::Term>(v1_high_shift), static_cast<cvc5::Term>(max_high_shift) }));
 
     // V2 limb range constraints
     s.assertFormula(
         s.term_manager.mkTerm(cvc5::Kind::GEQ, { static_cast<cvc5::Term>(v2_low), static_cast<cvc5::Term>(zero) }));
-    s.assertFormula(s.term_manager.mkTerm(cvc5::Kind::LEQ,
-                                          { static_cast<cvc5::Term>(v2_low), static_cast<cvc5::Term>(max_68bit) }));
+    s.assertFormula(
+        s.term_manager.mkTerm(cvc5::Kind::LEQ, { static_cast<cvc5::Term>(v2_low), static_cast<cvc5::Term>(max_low) }));
     s.assertFormula(s.term_manager.mkTerm(cvc5::Kind::GEQ,
                                           { static_cast<cvc5::Term>(v2_low_shift), static_cast<cvc5::Term>(zero) }));
     s.assertFormula(s.term_manager.mkTerm(
-        cvc5::Kind::LEQ, { static_cast<cvc5::Term>(v2_low_shift), static_cast<cvc5::Term>(max_68bit) }));
+        cvc5::Kind::LEQ, { static_cast<cvc5::Term>(v2_low_shift), static_cast<cvc5::Term>(max_low_shift) }));
     s.assertFormula(
         s.term_manager.mkTerm(cvc5::Kind::GEQ, { static_cast<cvc5::Term>(v2_high), static_cast<cvc5::Term>(zero) }));
     s.assertFormula(s.term_manager.mkTerm(cvc5::Kind::LEQ,
-                                          { static_cast<cvc5::Term>(v2_high), static_cast<cvc5::Term>(max_68bit) }));
+                                          { static_cast<cvc5::Term>(v2_high), static_cast<cvc5::Term>(max_high) }));
     s.assertFormula(s.term_manager.mkTerm(cvc5::Kind::GEQ,
                                           { static_cast<cvc5::Term>(v2_high_shift), static_cast<cvc5::Term>(zero) }));
     s.assertFormula(s.term_manager.mkTerm(
-        cvc5::Kind::LEQ, { static_cast<cvc5::Term>(v2_high_shift), static_cast<cvc5::Term>(max_50bit) }));
+        cvc5::Kind::LEQ, { static_cast<cvc5::Term>(v2_high_shift), static_cast<cvc5::Term>(max_high_shift) }));
 
-    // Select which variable to test (x_lo or x_hi)
-    smt_terms::STerm v1_var = (var_name == "x_lo") ? v1_x_lo : v1_x_hi;
-    smt_terms::STerm v2_var = (var_name == "x_lo") ? v2_x_lo : v2_x_hi;
+    // Select which variable to test (lo or hi)
+    smt_terms::STerm v1_var = is_low ? v1_lo : v1_hi;
+    smt_terms::STerm v2_var = is_low ? v2_lo : v2_hi;
 
-    // Constrain x_lo or x_hi to be equal
+    // Constrain lo or hi to be equal
     s.assertFormula(
         s.term_manager.mkTerm(cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(v1_var), static_cast<cvc5::Term>(v2_var) }));
 
     // Assert that at least one relevant limb differs
-    // For x_lo: check p_x_low_limbs and p_x_low_limbs_shift
-    // For x_hi: check p_x_high_limbs and p_x_high_limbs_shift
+    // For x_lo/y_lo: check low_limbs and low_limbs_shift
+    // For x_hi/y_hi: check high_limbs and high_limbs_shift
+    // For z1: check z_low_limbs and z_high_limbs (non-shift)
+    // For z2: check z_low_limbs_shift and z_high_limbs_shift
     std::vector<cvc5::Term> differs;
-    if (var_name == "x_lo") {
-        differs.push_back(s.term_manager.mkTerm(
-            cvc5::Kind::NOT,
-            { s.term_manager.mkTerm(cvc5::Kind::EQUAL,
-                                    { static_cast<cvc5::Term>(v1_low - v2_low), static_cast<cvc5::Term>(zero) }) }));
-        differs.push_back(
-            s.term_manager.mkTerm(cvc5::Kind::NOT,
-                                  { s.term_manager.mkTerm(cvc5::Kind::EQUAL,
-                                                          { static_cast<cvc5::Term>(v1_low_shift - v2_low_shift),
-                                                            static_cast<cvc5::Term>(zero) }) }));
+    if (is_z) {
+        // z1 uses non-shift limbs, z2 uses shift limbs
+        if (is_low) {
+            // z1: z_low_limbs + z_high_limbs * LIMB_SHIFT
+            differs.push_back(s.term_manager.mkTerm(
+                cvc5::Kind::NOT,
+                { s.term_manager.mkTerm(
+                    cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(v1_low - v2_low), static_cast<cvc5::Term>(zero) }) }));
+            differs.push_back(
+                s.term_manager.mkTerm(cvc5::Kind::NOT,
+                                      { s.term_manager.mkTerm(cvc5::Kind::EQUAL,
+                                                              { static_cast<cvc5::Term>(v1_high - v2_high),
+                                                                static_cast<cvc5::Term>(zero) }) }));
+        } else {
+            // z2: z_low_limbs_shift + z_high_limbs_shift * LIMB_SHIFT
+            differs.push_back(
+                s.term_manager.mkTerm(cvc5::Kind::NOT,
+                                      { s.term_manager.mkTerm(cvc5::Kind::EQUAL,
+                                                              { static_cast<cvc5::Term>(v1_low_shift - v2_low_shift),
+                                                                static_cast<cvc5::Term>(zero) }) }));
+            differs.push_back(
+                s.term_manager.mkTerm(cvc5::Kind::NOT,
+                                      { s.term_manager.mkTerm(cvc5::Kind::EQUAL,
+                                                              { static_cast<cvc5::Term>(v1_high_shift - v2_high_shift),
+                                                                static_cast<cvc5::Term>(zero) }) }));
+        }
     } else {
-        differs.push_back(s.term_manager.mkTerm(
-            cvc5::Kind::NOT,
-            { s.term_manager.mkTerm(cvc5::Kind::EQUAL,
-                                    { static_cast<cvc5::Term>(v1_high - v2_high), static_cast<cvc5::Term>(zero) }) }));
-        differs.push_back(
-            s.term_manager.mkTerm(cvc5::Kind::NOT,
-                                  { s.term_manager.mkTerm(cvc5::Kind::EQUAL,
-                                                          { static_cast<cvc5::Term>(v1_high_shift - v2_high_shift),
-                                                            static_cast<cvc5::Term>(zero) }) }));
+        // x/y case
+        if (is_low) {
+            differs.push_back(s.term_manager.mkTerm(
+                cvc5::Kind::NOT,
+                { s.term_manager.mkTerm(
+                    cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(v1_low - v2_low), static_cast<cvc5::Term>(zero) }) }));
+            differs.push_back(
+                s.term_manager.mkTerm(cvc5::Kind::NOT,
+                                      { s.term_manager.mkTerm(cvc5::Kind::EQUAL,
+                                                              { static_cast<cvc5::Term>(v1_low_shift - v2_low_shift),
+                                                                static_cast<cvc5::Term>(zero) }) }));
+        } else {
+            differs.push_back(
+                s.term_manager.mkTerm(cvc5::Kind::NOT,
+                                      { s.term_manager.mkTerm(cvc5::Kind::EQUAL,
+                                                              { static_cast<cvc5::Term>(v1_high - v2_high),
+                                                                static_cast<cvc5::Term>(zero) }) }));
+            differs.push_back(
+                s.term_manager.mkTerm(cvc5::Kind::NOT,
+                                      { s.term_manager.mkTerm(cvc5::Kind::EQUAL,
+                                                              { static_cast<cvc5::Term>(v1_high_shift - v2_high_shift),
+                                                                static_cast<cvc5::Term>(zero) }) }));
+        }
     }
 
     cvc5::Term at_least_one_differs = differs[0];
@@ -422,49 +631,48 @@ void test_x_lo_x_hi_uniqueness_and_maximum(smt_solver::Solver& s,
     out_unique = s.check() ? "NOT_UNIQUE" : "UNIQUE";
     s.pop();
 
-    // Test maximum value
+    // Test maximum value using discovered limb maximums (bottom-up approach)
     s.push();
 
     std::vector<smt_terms::STerm> fm, vm;
     std::vector<std::string> nm;
 
     smt_translator_relations::instantiate_translator_decomposition_with_iterm_return_formulas(&s, "M", fm, vm, nm);
-    smt_translator_relations::assert_formulas_zero(&s, { fm[42], fm[43] });
+    smt_translator_relations::assert_formulas_zero(&s, { fm[lo_relation], fm[hi_relation] });
 
     // Find the variables
-    smt_terms::STerm m_low, m_low_shift, m_high, m_high_shift, m_x_lo, m_x_hi;
+    smt_terms::STerm m_low, m_low_shift, m_high, m_high_shift, m_lo, m_hi;
     for (size_t i = 0; i < nm.size(); ++i) {
-        if (nm[i] == "M_p_x_low_limbs")
+        if (nm[i] == "M_" + low_limb_name)
             m_low = vm[i];
-        if (nm[i] == "M_p_x_low_limbs_shift")
+        if (nm[i] == "M_" + low_limb_shift_name)
             m_low_shift = vm[i];
-        if (nm[i] == "M_p_x_high_limbs")
+        if (nm[i] == "M_" + high_limb_name)
             m_high = vm[i];
-        if (nm[i] == "M_p_x_high_limbs_shift")
+        if (nm[i] == "M_" + high_limb_shift_name)
             m_high_shift = vm[i];
-        if (nm[i] == "M_x_lo_y_hi")
-            m_x_lo = vm[i];
-        if (nm[i] == "M_x_hi_z_1")
-            m_x_hi = vm[i];
+        if (nm[i] == "M_" + lo_var_name)
+            m_lo = vm[i];
+        if (nm[i] == "M_" + hi_var_name)
+            m_hi = vm[i];
     }
 
-    // Constrain limbs to their maximum values
-    s.assertFormula(s.term_manager.mkTerm(cvc5::Kind::EQUAL,
-                                          { static_cast<cvc5::Term>(m_low), static_cast<cvc5::Term>(max_68bit) }));
+    // Constrain limbs to their discovered maximum values (bottom-up approach)
+    s.assertFormula(
+        s.term_manager.mkTerm(cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(m_low), static_cast<cvc5::Term>(max_low) }));
     s.assertFormula(s.term_manager.mkTerm(
-        cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(m_low_shift), static_cast<cvc5::Term>(max_68bit) }));
+        cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(m_low_shift), static_cast<cvc5::Term>(max_low_shift) }));
     s.assertFormula(s.term_manager.mkTerm(cvc5::Kind::EQUAL,
-                                          { static_cast<cvc5::Term>(m_high), static_cast<cvc5::Term>(max_68bit) }));
+                                          { static_cast<cvc5::Term>(m_high), static_cast<cvc5::Term>(max_high) }));
     s.assertFormula(s.term_manager.mkTerm(
-        cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(m_high_shift), static_cast<cvc5::Term>(max_50bit) }));
+        cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(m_high_shift), static_cast<cvc5::Term>(max_high_shift) }));
 
-    smt_terms::STerm m_var = (var_name == "x_lo") ? m_x_lo : m_x_hi;
+    // Get the maximum value from solver (limbs are constrained to discovered maximums)
+    smt_terms::STerm m_var = is_low ? m_lo : m_hi;
 
     if (s.check()) {
         uint256_t max_val = uint256_from_decimal_string(s.get(m_var));
-        std::ostringstream oss;
-        oss << max_val;
-        out_max = oss.str();
+        out_max = uint256_to_decimal_string(max_val);
     } else {
         out_max = "UNSAT";
     }
@@ -492,7 +700,8 @@ TEST(TranslatorRelationVerification, test_translator_decompositions)
     std::cerr << "Testing Translator VM Decompositions\n";
     std::cerr << std::string(80, '=') << "\n\n";
 
-    // Test individual limb decompositions
+    std::vector<uint256_t> max_values;
+    // Test individual limb decompositions for p_y and p_x
     {
         std::vector<smt_terms::STerm> formulas, vars;
         std::vector<std::string> names;
@@ -503,26 +712,52 @@ TEST(TranslatorRelationVerification, test_translator_decompositions)
         // Apply range constraints
         smt_translator_relations::create_range_constraint_formulas(&s, vars, names, "constraint", 16384);
 
-        std::vector<LimbDecomposition> limbs_to_test = { decomp_map[4], decomp_map[5], decomp_map[6], decomp_map[7] };
+        // Test z limbs (indices 4-7), p_y limbs (indices 8-11), p_x limbs (indices 12-15)
+        std::vector<LimbDecomposition> limbs_to_test = {
+            decomp_map[4],  decomp_map[5],  decomp_map[6],  decomp_map[7],  decomp_map[8],  decomp_map[9],
+            decomp_map[10], decomp_map[11], decomp_map[12], decomp_map[13], decomp_map[14], decomp_map[15]
+        };
 
         for (const auto& decomp : limbs_to_test) {
             std::string unique_result, max_value;
             test_limb_uniqueness_and_maximum(s, decomp, unique_result, max_value);
 
+            std::string bitness_str = "N/A";
+            std::string max_hex_str = max_value;
+            ASSERT_TRUE(max_value != "UNSAT");
+            uint256_t max_val = uint256_from_decimal_string(max_value);
+            uint64_t bits = max_val.get_msb() + 1;
+            bitness_str = std::to_string(bits) + " bits";
+            std::ostringstream oss;
+            oss << max_val; // uint256_t outputs in hex with 0x prefix
+            max_hex_str = oss.str();
+            max_values.push_back(max_val);
+
             std::cerr << std::left << std::setw(30) << decomp.limb_name << " | " << std::setw(12) << unique_result
-                      << " | max: " << max_value << "\n";
+                      << " | max: " << std::setw(68) << max_hex_str << " | " << bitness_str << "\n";
 
             ASSERT_EQ(unique_result, "UNIQUE");
         }
     }
 
-    // Test x_lo and x_hi decompositions
-    for (const auto& var_name : { "x_lo", "x_hi" }) {
+    // Test x_lo, x_hi, y_lo, y_hi, z1, z2 decompositions
+    for (const auto& var_name : { "x_lo", "x_hi", "y_lo", "y_hi", "z1", "z2" }) {
         std::string unique_result, max_value;
-        test_x_lo_x_hi_uniqueness_and_maximum(s, var_name, unique_result, max_value);
+        test_lo_hi_uniqueness_and_maximum(s, var_name, max_values, unique_result, max_value);
+
+        std::string bitness_str = "N/A";
+        std::string max_hex_str = max_value;
+        if (max_value != "UNSAT") {
+            uint256_t max_val = uint256_from_decimal_string(max_value);
+            uint64_t bits = max_val.get_msb() + 1;
+            bitness_str = std::to_string(bits) + " bits";
+            std::ostringstream oss;
+            oss << max_val; // uint256_t outputs in hex with 0x prefix
+            max_hex_str = oss.str();
+        }
 
         std::cerr << std::left << std::setw(30) << var_name << " | " << std::setw(12) << unique_result
-                  << " | max: " << max_value << "\n";
+                  << " | max: " << std::setw(68) << max_hex_str << " | " << bitness_str << "\n";
 
         ASSERT_EQ(unique_result, "UNIQUE");
     }
