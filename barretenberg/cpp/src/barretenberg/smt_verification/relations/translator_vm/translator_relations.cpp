@@ -667,4 +667,301 @@ void add_translator_uniqueness_constraints_for_prefix_pair(Solver* solver,
     FFIVar(prefix2 + std::string("_") + lagr_name, solver) == one;
 }
 
+std::vector<STerm> extract_translator_decomposition_relation_formulas(Solver* solver)
+{
+    using namespace detail;
+    g_solver = solver;
+
+    SymAllEntities in;
+    auto refs = in.get_all();
+    auto names = build_all_entity_member_names();
+
+    // 1) Fill empty names with placeholders so suffixing works reliably
+    for (size_t i = 0; i < names.size(); ++i) {
+        if (names[i].empty()) {
+            names[i] = std::string("E_") + std::to_string(i);
+        }
+    }
+
+    // 2) For interleaved constraints at the tail, derive labels if missing
+    {
+        using Flavor = bb::TranslatorFlavor;
+        const size_t interleaved_start = Flavor::INTERLEAVED_START;
+        for (size_t i = interleaved_start; i < names.size(); ++i) {
+            if (names[i].empty() || names[i].rfind("E_", 0) == 0) {
+                names[i] = std::string("INTERLEAVED_RANGE_CONSTRAINTS_") + std::to_string(i - interleaved_start);
+            }
+        }
+    }
+
+    // Ensure uniqueness to avoid collisions in the SMT dump
+    std::unordered_set<std::string> seen;
+    for (size_t i = 0; i < names.size(); ++i) {
+        if (!seen.insert(names[i]).second) {
+            size_t k = 1;
+            const std::string base = names[i];
+            std::string candidate = base + std::string("_") + std::to_string(k);
+            while (!seen.insert(candidate).second) {
+                ++k;
+                candidate = base + std::string("_") + std::to_string(k);
+            }
+            names[i] = candidate;
+        }
+    }
+
+    for (size_t i = 0; i < refs.size(); ++i) {
+        if (names[i] == std::string("lagrange_even_in_minicircuit")) {
+            // Set as constant 1 from the start
+            refs[i] = SymFF(STerm(bb::fr(1), solver, TermType::FFTerm));
+        } else {
+            refs[i] = SymFF(FFVar(names[i], solver));
+        }
+    }
+
+    bb::RelationParameters<SymFF> params;
+    // Set scaling to constant 1 from the start (FFTerm)
+    SymFF scaling(1);
+
+    using RelImpl = bb::TranslatorDecompositionRelationImpl<SymFF>;
+    std::tuple<UniAcc<4>,
+               UniAcc<4>,
+               UniAcc<4>,
+               UniAcc<4>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<2>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>,
+               UniAcc<3>>
+        accs;
+
+    RelImpl::accumulate(accs, in, params, scaling);
+
+    // Extract each accumulated component as an STerm
+    std::vector<STerm> formulas;
+    std::apply([&](auto&... a) { (formulas.push_back(static_cast<STerm>(a.val)), ...); }, accs);
+
+    return formulas;
+}
+
+void instantiate_translator_decomposition_with_iterm_return_formulas(Solver* solver,
+                                                                     const std::string& prefix,
+                                                                     std::vector<STerm>& out_formulas,
+                                                                     std::vector<STerm>& out_vars,
+                                                                     std::vector<std::string>& out_names)
+{
+    using namespace detail;
+    g_solver = solver;
+
+    SymAllEntitiesInt in;
+    auto refs = in.get_all();
+    auto names = build_all_entity_member_names();
+
+    // 1) Fill empty names with placeholders so suffixing works reliably
+    for (size_t i = 0; i < names.size(); ++i) {
+        if (names[i].empty()) {
+            assert(false);
+            names[i] = std::string("E_") + std::to_string(i);
+        }
+    }
+
+    // 2) Apply optional prefix to allow multiple independent instantiations
+    if (!prefix.empty()) {
+        for (auto& n : names) {
+            n = prefix + std::string("_") + n;
+        }
+    }
+
+    // 3) For interleaved constraints at the tail, derive labels if missing
+    {
+        using Flavor = bb::TranslatorFlavor;
+        const size_t interleaved_start = Flavor::INTERLEAVED_START;
+        for (size_t i = interleaved_start; i < names.size(); ++i) {
+            if (names[i].empty() || names[i].rfind("E_", 0) == 0) {
+                assert(false);
+                names[i] = std::string("INTERLEAVED_RANGE_CONSTRAINTS_") + std::to_string(i - interleaved_start);
+            }
+        }
+    }
+
+    // Ensure uniqueness to avoid collisions in the SMT dump
+    std::unordered_set<std::string> seen;
+    for (size_t i = 0; i < names.size(); ++i) {
+        if (!seen.insert(names[i]).second) {
+            size_t k = 1;
+            const std::string base = names[i];
+            std::string candidate = base + std::string("_") + std::to_string(k);
+            while (!seen.insert(candidate).second) {
+                ++k;
+                candidate = base + std::string("_") + std::to_string(k);
+            }
+            names[i] = candidate;
+        }
+    }
+
+    for (size_t i = 0; i < refs.size(); ++i) {
+        bool is_lagr_even = false;
+        {
+            static const std::string target = "lagrange_even_in_minicircuit";
+            if (names[i].size() >= target.size() && names[i].substr(names[i].size() - target.size()) == target) {
+                is_lagr_even = true;
+            }
+        }
+        if (is_lagr_even) {
+            STerm one = FFIConst("1", solver, 10);
+            refs[i] = SymFFI(one);
+            out_vars.push_back(one);
+        } else {
+            STerm var = FFIVar(names[i], solver);
+            refs[i] = SymFFI(var);
+            out_vars.push_back(var);
+        }
+    }
+    out_names.reserve(out_names.size() + names.size());
+    for (const auto& nm : names) {
+        out_names.push_back(nm);
+    }
+
+    bb::RelationParameters<SymFFI> params;
+    // Use scaling as constant 1 from the start (FFITerm)
+    SymFFI scaling(1);
+
+    using RelImpl = bb::TranslatorDecompositionRelationImpl<SymFFI>;
+    std::tuple<UniAccInt<4>,
+               UniAccInt<4>,
+               UniAccInt<4>,
+               UniAccInt<4>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<2>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>,
+               UniAccInt<3>>
+        accs;
+
+    RelImpl::accumulate(accs, in, params, scaling);
+
+    // Extract each accumulated component as an STerm (relation formulas)
+    std::apply([&](auto&... a) { (out_formulas.push_back(static_cast<STerm>(a.val)), ...); }, accs);
+}
+
+std::vector<STerm> create_range_constraint_formulas(Solver* solver,
+                                                    const std::vector<STerm>& vars,
+                                                    const std::vector<std::string>& var_names,
+                                                    const std::string& name_pattern,
+                                                    uint64_t upper_bound)
+{
+    using namespace detail;
+    g_solver = solver; // Set global solver for term operations
+
+    std::vector<STerm> constraints;
+
+    STerm lower = FFIConst("0", solver, 10);
+    STerm upper = FFIConst(std::to_string(upper_bound), solver, 10);
+
+    for (size_t i = 0; i < vars.size(); ++i) {
+        if (var_names[i].find(name_pattern) != std::string::npos) {
+            // Create constraints: var >= 0 AND var < upper_bound
+            // These will be automatically asserted when evaluated
+            lower <= vars[i];
+            vars[i] < upper;
+        }
+    }
+
+    return constraints;
+}
+
+void assert_formulas_zero(Solver* solver, const std::vector<STerm>& formulas)
+{
+    using namespace detail;
+    STerm zero = FFIConst("0", solver, 10);
+    for (const auto& formula : formulas) {
+        cvc5::Term eq = solver->term_manager.mkTerm(
+            cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(formula), static_cast<cvc5::Term>(zero) });
+        solver->assertFormula(eq);
+    }
+}
+
+void reset_solver_state()
+{
+    using namespace detail;
+    g_solver = nullptr;
+}
+
 } // namespace smt_translator_relations

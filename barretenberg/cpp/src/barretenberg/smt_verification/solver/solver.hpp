@@ -157,6 +157,9 @@ class Solver {
 
     void assertFormula(const cvc5::Term& term) const { this->solver.assertFormula(term); }
 
+    void push() { this->solver.push(); }
+    void pop() { this->solver.pop(); }
+
     bool check();
 
     [[nodiscard]] const char* getResult() const
