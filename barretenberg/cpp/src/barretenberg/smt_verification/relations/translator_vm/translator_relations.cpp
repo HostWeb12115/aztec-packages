@@ -280,6 +280,9 @@ void instantiate_translator_decomposition_with_ffterm_and_assert(Solver* solver)
         if (names[i] == std::string("lagrange_even_in_minicircuit")) {
             // Set as constant 1 from the start
             refs[i] = SymFF(STerm(bb::fr(1), solver, TermType::FFTerm));
+        } else if (names[i] == std::string("op")) {
+            // Set as constant 1 from the start
+            refs[i] = SymFF(STerm(bb::fr(1), solver, TermType::FFTerm));
         } else {
             refs[i] = SymFF(FFVar(names[i], solver));
         }
@@ -839,13 +842,20 @@ void instantiate_translator_decomposition_with_iterm_return_formulas(Solver* sol
 
     for (size_t i = 0; i < refs.size(); ++i) {
         bool is_lagr_even = false;
+        bool is_op = false;
         {
             static const std::string target = "lagrange_even_in_minicircuit";
             if (names[i].size() >= target.size() && names[i].substr(names[i].size() - target.size()) == target) {
                 is_lagr_even = true;
             }
         }
-        if (is_lagr_even) {
+        {
+            static const std::string target = "op";
+            if (names[i] == target) {
+                is_op = true;
+            }
+        }
+        if (is_lagr_even || is_op) {
             STerm one = FFIConst("1", solver, 10);
             refs[i] = SymFFI(one);
             out_vars.push_back(one);
