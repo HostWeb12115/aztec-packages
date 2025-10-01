@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
 namespace smt_translator_relations {
@@ -39,6 +40,13 @@ void replay_translator_decomposition_relation(const smt_relation_recorder::Opera
                                               std::vector<smt_terms::STerm>& out_formulas,
                                               std::vector<smt_terms::STerm>& out_vars,
                                               std::vector<std::string>& out_names);
+
+void replay_translator_decomposition_relation_with_results(const smt_relation_recorder::OperationTrace& trace,
+                                                           const std::unordered_map<size_t, smt_terms::STerm>& results,
+                                                           const std::string& prefix,
+                                                           std::vector<smt_terms::STerm>& out_formulas,
+                                                           std::vector<smt_terms::STerm>& out_vars,
+                                                           std::vector<std::string>& out_names);
 
 /**
  * @brief Replay a recorded translator opcode constraint relation on a specific solver

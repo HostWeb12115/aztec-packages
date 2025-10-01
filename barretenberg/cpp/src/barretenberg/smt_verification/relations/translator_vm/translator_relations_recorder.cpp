@@ -325,101 +325,22 @@ void replay_translator_decomposition_relation(const OperationTrace& trace,
     // Replay operations with custom variable naming
     std::unordered_map<size_t, STerm> results;
 
-    for (const auto& op : trace.operations) {
-        STerm result;
-
-        switch (op.kind) {
-        case OpKind::VAR: {
-            const auto& var_name = std::get<std::string>(op.value);
-            // Use mapped name if available, otherwise use original
-            const auto& actual_name = name_map.count(var_name) ? name_map[var_name] : var_name;
-            if (use_ffi) {
-                result = FFIVar(actual_name, solver);
-            } else {
-                result = FFVar(actual_name, solver);
-            }
-            break;
-        }
-
-        case OpKind::CONST_U64: {
-            uint64_t val = std::get<uint64_t>(op.value);
-            result = use_ffi ? FFIConst(std::to_string(val), solver, 10) : FFConst(std::to_string(val), solver, 10);
-            break;
-        }
-
-        case OpKind::CONST_I64: {
-            int64_t val = std::get<int64_t>(op.value);
-            result = use_ffi ? FFIConst(std::to_string(val), solver, 10) : FFConst(std::to_string(val), solver, 10);
-            break;
-        }
-
-        case OpKind::CONST_INT: {
-            int val = std::get<int>(op.value);
-            result = use_ffi ? FFIConst(std::to_string(val), solver, 10) : FFConst(std::to_string(val), solver, 10);
-            break;
-        }
-
-        case OpKind::CONST_U256: {
-            const auto& val = std::get<uint256_t>(op.value);
-            if (use_ffi) {
-                result = STerm(bb::fr(val), solver, TermType::FFITerm);
-            } else {
-                result = FFConst(bb::fr(val), solver);
-            }
-            break;
-        }
-
-        case OpKind::CONST_FR: {
-            const auto& val = std::get<bb::fr>(op.value);
-            result = use_ffi ? STerm(val, solver, TermType::FFITerm) : STerm(val, solver, TermType::FFTerm);
-            break;
-        }
-
-        case OpKind::ADD:
-            result = results.at(op.lhs_id) + results.at(op.rhs_id);
-            break;
-
-        case OpKind::SUB:
-            result = results.at(op.lhs_id) - results.at(op.rhs_id);
-            break;
-
-        case OpKind::MUL:
-            result = results.at(op.lhs_id) * results.at(op.rhs_id);
-            break;
-
-        case OpKind::NEG:
-            if (!results.count(op.lhs_id)) {
-                throw std::runtime_error("NEG operation references undefined operand ID: " + std::to_string(op.lhs_id));
-            }
-            result = -results.at(op.lhs_id);
-            break;
-
-        default:
-            throw std::runtime_error("Unknown operation kind in replay");
-        }
-
-        results[op.result_id] = result;
-    }
-
-    // Extract formulas from accumulator results
-    out_formulas.clear();
-    for (size_t i = 0; i < trace.accumulator_results.size(); ++i) {
-        if (trace.accumulator_results.count(i)) {
-            out_formulas.push_back(results.at(trace.accumulator_results.at(i)));
-        }
-    }
-
-    // Collect variables and names
+    // Generate initial variables
+    std::unordered_map<std::string, STerm> initial_variables;
     out_vars.clear();
     out_names.clear();
-    for (const auto& op : trace.operations) {
-        if (op.kind == OpKind::VAR) {
-            const auto& var_name = std::get<std::string>(op.value);
-            const auto& actual_name = name_map.count(var_name) ? name_map[var_name] : var_name;
-            out_vars.push_back(results.at(op.result_id));
-            out_names.push_back(actual_name);
+    for (const auto& name : original_names) {
+        if (name_map.count(name)) {
+            initial_variables[name] = use_ffi ? FFIVar(name_map[name], solver) : FFVar(name_map[name], solver);
+            out_vars.push_back(initial_variables[name]);
+            out_names.push_back(name_map[name]);
+        } else {
+            throw std::runtime_error("Variable not found in name map");
         }
     }
+
+    // Replay operations with custom variable naming
+    out_formulas = OperationReplayer::replay(trace, solver, initial_variables, use_ffi);
 }
 
 void replay_translator_opcode_constraint_relation(const OperationTrace& trace,

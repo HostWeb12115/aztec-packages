@@ -3,6 +3,7 @@
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -69,8 +70,8 @@ class OperationTrace {
     std::vector<Operation> operations;
     size_t next_id = 0;
 
-    // Maps accumulator index to the operation ID representing its final value
-    std::unordered_map<size_t, size_t> accumulator_results;
+    // Stores accumulator results in index order
+    std::vector<size_t> accumulator_results;
 
     /**
      * @brief Record a variable
@@ -154,6 +155,9 @@ class OperationTrace {
      */
     void set_accumulator_result(size_t accumulator_idx, size_t operation_id)
     {
+        if (accumulator_idx >= accumulator_results.size()) {
+            accumulator_results.resize(accumulator_idx + 1, std::numeric_limits<size_t>::max());
+        }
         accumulator_results[accumulator_idx] = operation_id;
     }
 };
@@ -323,12 +327,13 @@ class OperationReplayer {
      * @brief Replay operations to produce actual SMT terms for a given solver
      * @param trace The recorded operation trace
      * @param solver The SMT solver to create terms with
+     * @param initial_variables The initial variables to use for the replay
      * @param is_ffi Whether to use FFI terms (true) or FF terms (false)
-     * @return Map from operation IDs to their corresponding SMT terms
+     * @return Vector of SMT terms
      */
-    static std::unordered_map<size_t, smt_terms::STerm> replay(const OperationTrace& trace,
-                                                               smt_solver::Solver* solver,
-                                                               bool is_ffi = false);
+    static std::vector<smt_terms::STerm> replay(const OperationTrace& trace,
+                                                smt_solver::Solver* solver,
+                                                std::unordered_map<std::string, smt_terms::STerm>& initial_variables,
+                                                bool is_ffi = false);
 };
-
 } // namespace smt_relation_recorder

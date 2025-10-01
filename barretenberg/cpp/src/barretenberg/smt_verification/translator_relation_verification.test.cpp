@@ -2,7 +2,9 @@
 
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/relations/translator_vm/translator_decomposition_relation.hpp"
+#include "barretenberg/smt_verification/relations/relation_operation_recorder.hpp"
 #include "barretenberg/smt_verification/relations/translator_vm/translator_relations.hpp"
+#include "barretenberg/smt_verification/relations/translator_vm/translator_relations_recorder.hpp"
 #include "barretenberg/smt_verification/solver/solver.hpp"
 #include <iomanip>
 #include <set>
@@ -397,10 +399,12 @@ MappedLimbVariables find_mapped_limb_variables(const std::vector<smt_terms::STer
 /**
  * @brief Test uniqueness and maximum value for a limb decomposition
  */
-void test_limb_uniqueness_and_maximum(smt_solver::Solver& s,
-                                      const LimbDecomposition& decomp,
-                                      std::string& out_unique,
-                                      std::string& out_max)
+void test_limb_uniqueness_and_maximum(
+    smt_solver::Solver& s,
+    const std::shared_ptr<smt_relation_recorder::OperationTrace>& recording_trace_main,
+    const LimbDecomposition& decomp,
+    std::string& out_unique,
+    std::string& out_max)
 {
     // Test uniqueness
     s.push();
@@ -408,8 +412,10 @@ void test_limb_uniqueness_and_maximum(smt_solver::Solver& s,
     std::vector<smt_terms::STerm> f1, v1, f2, v2;
     std::vector<std::string> n1, n2;
 
-    smt_translator_relations::instantiate_translator_decomposition_with_iterm_return_formulas(&s, "V1", f1, v1, n1);
-    smt_translator_relations::instantiate_translator_decomposition_with_iterm_return_formulas(&s, "V2", f2, v2, n2);
+    smt_translator_relations::replay_translator_decomposition_relation(
+        *recording_trace_main, &s, "V1", true, f1, v1, n1);
+    smt_translator_relations::replay_translator_decomposition_relation(
+        *recording_trace_main, &s, "V2", true, f2, v2, n2);
 
     smt_translator_relations::create_range_constraint_formulas(&s, v1, n1, "constraint", 16384);
     smt_translator_relations::create_range_constraint_formulas(&s, v2, n2, "constraint", 16384);
@@ -467,7 +473,8 @@ void test_limb_uniqueness_and_maximum(smt_solver::Solver& s,
     std::vector<smt_terms::STerm> fm, vm;
     std::vector<std::string> nm;
 
-    smt_translator_relations::instantiate_translator_decomposition_with_iterm_return_formulas(&s, "M", fm, vm, nm);
+    smt_translator_relations::replay_translator_decomposition_relation(
+        *recording_trace_main, &s, "M", true, fm, vm, nm);
     smt_translator_relations::create_range_constraint_formulas(&s, vm, nm, "constraint", 16384);
 
     // Constrain op and lagrange_even_in_minicircuit wires to 1
@@ -522,11 +529,13 @@ void test_limb_uniqueness_and_maximum(smt_solver::Solver& s,
     out_max = uint256_to_decimal_string(max_found);
 }
 
-void test_lo_hi_uniqueness_and_maximum(smt_solver::Solver& s,
-                                       const std::string& var_name,
-                                       const std::vector<uint256_t>& limb_max_values,
-                                       std::string& out_unique,
-                                       std::string& out_max)
+void test_lo_hi_uniqueness_and_maximum(
+    smt_solver::Solver& s,
+    const std::shared_ptr<smt_relation_recorder::OperationTrace>& recording_trace_main,
+    const std::string& var_name,
+    const std::vector<uint256_t>& limb_max_values,
+    std::string& out_unique,
+    std::string& out_max)
 {
     // Determine coordinate (x, y, or z) and level (lo or hi, or 1 or 2 for z)
     bool is_x = (var_name == "x_lo" || var_name == "x_hi");
@@ -568,8 +577,10 @@ void test_lo_hi_uniqueness_and_maximum(smt_solver::Solver& s,
     std::vector<smt_terms::STerm> f1, v1, f2, v2;
     std::vector<std::string> n1, n2;
 
-    smt_translator_relations::instantiate_translator_decomposition_with_iterm_return_formulas(&s, "V1", f1, v1, n1);
-    smt_translator_relations::instantiate_translator_decomposition_with_iterm_return_formulas(&s, "V2", f2, v2, n2);
+    smt_translator_relations::replay_translator_decomposition_relation(
+        *recording_trace_main, &s, "V1", true, f1, v1, n1);
+    smt_translator_relations::replay_translator_decomposition_relation(
+        *recording_trace_main, &s, "V2", true, f2, v2, n2);
 
     // Assert decomposition relations for the composite values only (not the limb decompositions)
     smt_translator_relations::assert_formulas_zero(
@@ -744,7 +755,8 @@ void test_lo_hi_uniqueness_and_maximum(smt_solver::Solver& s,
     std::vector<smt_terms::STerm> fm, vm;
     std::vector<std::string> nm;
 
-    smt_translator_relations::instantiate_translator_decomposition_with_iterm_return_formulas(&s, "M", fm, vm, nm);
+    smt_translator_relations::replay_translator_decomposition_relation(
+        *recording_trace_main, &s, "M", true, fm, vm, nm);
     smt_translator_relations::assert_formulas_zero(&s, { fm[lo_relation], fm[hi_relation] });
 
     // Find the variables
@@ -798,8 +810,6 @@ TEST(TranslatorRelationVerification, test_relation_formulas_extraction)
 
 TEST(TranslatorRelationVerification, test_translator_decompositions)
 {
-    // Reset state from any previous tests
-    smt_translator_relations::reset_solver_state();
 
     smt_solver::Solver s("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001",
                          smt_solver::default_solver_config);
@@ -811,13 +821,12 @@ TEST(TranslatorRelationVerification, test_translator_decompositions)
     std::cerr << std::string(80, '=') << "\n\n";
 
     std::vector<uint256_t> max_values;
+
+    auto recording_trace_main = smt_translator_relations::record_translator_decomposition_relation();
     // Test individual limb decompositions for p_y and p_x
     {
         std::vector<smt_terms::STerm> formulas, vars;
         std::vector<std::string> names;
-
-        smt_translator_relations::instantiate_translator_decomposition_with_iterm_return_formulas(
-            &s, "", formulas, vars, names);
 
         // Apply range constraints
         smt_translator_relations::create_range_constraint_formulas(&s, vars, names, "constraint", 16384);
@@ -833,7 +842,7 @@ TEST(TranslatorRelationVerification, test_translator_decompositions)
 
         for (const auto& decomp : limbs_to_test) {
             std::string unique_result, max_value;
-            test_limb_uniqueness_and_maximum(s, decomp, unique_result, max_value);
+            test_limb_uniqueness_and_maximum(s, recording_trace_main, decomp, unique_result, max_value);
 
             std::string bitness_str = "N/A";
             std::string max_hex_str = max_value;
@@ -862,11 +871,11 @@ TEST(TranslatorRelationVerification, test_translator_decompositions)
             }
         }
     }
-
+    std::cerr << "GOT TO HERE 1\n";
     // Test x_lo, x_hi, y_lo, y_hi, z1, z2 decompositions
     for (const auto& var_name : { "x_lo", "x_hi", "y_lo", "y_hi", "z1", "z2" }) {
         std::string unique_result, max_value;
-        test_lo_hi_uniqueness_and_maximum(s, var_name, max_values, unique_result, max_value);
+        test_lo_hi_uniqueness_and_maximum(s, recording_trace_main, var_name, max_values, unique_result, max_value);
 
         std::string bitness_str = "N/A";
         std::string max_hex_str = max_value;
@@ -948,8 +957,9 @@ TEST(TranslatorRelationVerification, test_opcode_constraint_relation)
     std::vector<std::string> names;
 
     // Get the opcode constraint relation formulas
-    smt_translator_relations::instantiate_translator_opcode_constraint_with_ffterm_return_formulas(
-        &s, "", formulas, vars, names);
+    auto recording_trace_opcode = smt_translator_relations::record_translator_opcode_constraint_relation();
+    smt_translator_relations::replay_translator_opcode_constraint_relation(
+        *recording_trace_opcode, &s, "", formulas, vars, names);
 
     std::cerr << "\n" << std::string(80, '=') << "\n";
     std::cerr << "Testing Translator Opcode Constraint Relation\n";
@@ -1051,8 +1061,9 @@ TEST(TranslatorRelationVerification, test_multiple_solver_issue)
         std::vector<smt_terms::STerm> formulas1, vars1;
         std::vector<std::string> names1;
 
-        smt_translator_relations::instantiate_translator_opcode_constraint_with_ffterm_return_formulas(
-            &s1, "S1", formulas1, vars1, names1);
+        auto recording_trace_opcode1 = smt_translator_relations::record_translator_opcode_constraint_relation();
+        smt_translator_relations::replay_translator_opcode_constraint_relation(
+            *recording_trace_opcode1, &s1, "S1", formulas1, vars1, names1);
 
         std::cerr << "First solver created " << formulas1.size() << " formulas with " << vars1.size() << " variables\n";
 
@@ -1095,9 +1106,9 @@ TEST(TranslatorRelationVerification, test_multiple_solver_issue)
         std::vector<smt_terms::STerm> formulas2, vars2;
         std::vector<std::string> names2;
 
-        std::cerr << "Instantiating relation with second solver...\n";
-        smt_translator_relations::instantiate_translator_opcode_constraint_with_ffterm_return_formulas(
-            &s2, "S2", formulas2, vars2, names2);
+        auto recording_trace_opcode2 = smt_translator_relations::record_translator_opcode_constraint_relation();
+        smt_translator_relations::replay_translator_opcode_constraint_relation(
+            *recording_trace_opcode2, &s2, "S2", formulas2, vars2, names2);
 
         std::cerr << "Second solver created " << formulas2.size() << " formulas with " << vars2.size()
                   << " variables\n";
@@ -1279,8 +1290,14 @@ TEST(TranslatorRelationVerification, print_accumulator_limb_0_uniqueness_check)
     std::vector<smt_terms::STerm> f1, v1, f2, v2;
     std::vector<std::string> n1, n2;
 
-    smt_translator_relations::instantiate_translator_decomposition_with_iterm_return_formulas(&s, "V1", f1, v1, n1);
-    smt_translator_relations::instantiate_translator_decomposition_with_iterm_return_formulas(&s, "V2", f2, v2, n2);
+    auto recording_trace_uniqueness = smt_translator_relations::record_translator_decomposition_relation();
+    smt_translator_relations::replay_translator_decomposition_relation(
+        *recording_trace_uniqueness, &s, "V1", true, f1, v1, n1);
+    smt_translator_relations::replay_translator_decomposition_relation(
+        *recording_trace_uniqueness, &s, "V2", true, f2, v2, n2);
+
+    smt_translator_relations::create_range_constraint_formulas(&s, v1, n1, "constraint", 16384);
+    smt_translator_relations::create_range_constraint_formulas(&s, v2, n2, "constraint", 16384);
 
     std::cerr << "Step 1: Apply range constraints (0 <= rc < 16384) to all variables with 'constraint' in name\n";
 

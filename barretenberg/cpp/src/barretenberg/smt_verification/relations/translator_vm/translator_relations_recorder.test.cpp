@@ -49,7 +49,7 @@ TEST(TranslatorRelationRecorder, test_recording_and_replay)
     std::cerr << std::string(80, '=') << "\n\n";
 }
 
-TEST(TranslatorRelationRecorder, DISABLED_test_multiple_separate_recordings)
+TEST(TranslatorRelationRecorder, test_multiple_separate_recordings)
 {
     // Record once
     auto trace = record_translator_decomposition_relation();

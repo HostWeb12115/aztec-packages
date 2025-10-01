@@ -6,9 +6,11 @@
 
 namespace smt_relation_recorder {
 
-std::unordered_map<size_t, smt_terms::STerm> OperationReplayer::replay(const OperationTrace& trace,
-                                                                       smt_solver::Solver* solver,
-                                                                       bool is_ffi)
+std::vector<smt_terms::STerm> OperationReplayer::replay(
+    const OperationTrace& trace,
+    smt_solver::Solver* solver,
+    std::unordered_map<std::string, smt_terms::STerm>& initial_variables,
+    bool is_ffi)
 {
     using namespace smt_terms;
 
@@ -22,9 +24,9 @@ std::unordered_map<size_t, smt_terms::STerm> OperationReplayer::replay(const Ope
         case OpKind::VAR: {
             const auto& var_name = std::get<std::string>(op.value);
             if (is_ffi) {
-                result = FFIVar(var_name, solver);
+                result = initial_variables.at(var_name);
             } else {
-                result = FFVar(var_name, solver);
+                result = initial_variables.at(var_name);
             }
             break;
         }
@@ -113,7 +115,11 @@ std::unordered_map<size_t, smt_terms::STerm> OperationReplayer::replay(const Ope
         results[op.result_id] = result;
     }
 
-    return results;
+    std::vector<smt_terms::STerm> accumulator_results;
+    for (const auto& id : trace.accumulator_results) {
+        accumulator_results.push_back(results.at(id));
+    }
+    return accumulator_results;
 }
 
 } // namespace smt_relation_recorder
