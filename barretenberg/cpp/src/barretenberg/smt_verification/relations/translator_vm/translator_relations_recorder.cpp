@@ -136,7 +136,7 @@ static std::vector<std::string> build_all_entity_member_names()
 
 } // anonymous namespace
 
-std::shared_ptr<OperationTrace> record_translator_decomposition_relation()
+OperationTrace record_translator_decomposition_relation()
 {
     auto trace = std::make_shared<OperationTrace>();
 
@@ -233,10 +233,10 @@ std::shared_ptr<OperationTrace> record_translator_decomposition_relation()
     // Clear the default trace to avoid state leaking between tests
     RecordingFF::default_trace.reset();
 
-    return trace;
+    return *trace;
 }
 
-std::shared_ptr<OperationTrace> record_translator_opcode_constraint_relation()
+OperationTrace record_translator_opcode_constraint_relation()
 {
     auto trace = std::make_shared<OperationTrace>();
 
@@ -297,7 +297,7 @@ std::shared_ptr<OperationTrace> record_translator_opcode_constraint_relation()
     // Clear the default trace to avoid state leaking between tests
     RecordingFF::default_trace.reset();
 
-    return trace;
+    return *trace;
 }
 
 void replay_translator_decomposition_relation(const OperationTrace& trace,
@@ -362,7 +362,7 @@ void instantiate_translator_decomposition_relation_recorded(smt_solver::Solver* 
                                                             std::vector<std::string>& out_names)
 {
     auto trace = record_translator_decomposition_relation();
-    replay_translator_decomposition_relation(*trace, solver, prefix, use_ffi, out_formulas, out_vars, out_names);
+    replay_translator_decomposition_relation(trace, solver, prefix, use_ffi, out_formulas, out_vars, out_names);
 }
 
 void instantiate_translator_opcode_constraint_relation_recorded(smt_solver::Solver* solver,
@@ -372,7 +372,7 @@ void instantiate_translator_opcode_constraint_relation_recorded(smt_solver::Solv
                                                                 std::vector<std::string>& out_names)
 {
     auto trace = record_translator_opcode_constraint_relation();
-    replay_translator_opcode_constraint_relation(*trace, solver, prefix, out_formulas, out_vars, out_names);
+    replay_translator_opcode_constraint_relation(trace, solver, prefix, out_formulas, out_vars, out_names);
 }
 
 } // namespace smt_translator_relations

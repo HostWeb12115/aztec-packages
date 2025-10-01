@@ -15,13 +15,13 @@ namespace smt_translator_relations {
  * This captures the computation graph without needing a solver
  * @return Shared pointer to the operation trace
  */
-std::shared_ptr<smt_relation_recorder::OperationTrace> record_translator_decomposition_relation();
+smt_relation_recorder::OperationTrace record_translator_decomposition_relation();
 
 /**
  * @brief Records the operations performed by the translator opcode constraint relation
  * @return Shared pointer to the operation trace
  */
-std::shared_ptr<smt_relation_recorder::OperationTrace> record_translator_opcode_constraint_relation();
+smt_relation_recorder::OperationTrace record_translator_opcode_constraint_relation();
 
 /**
  * @brief Replay a recorded translator decomposition relation on a specific solver

@@ -399,12 +399,11 @@ MappedLimbVariables find_mapped_limb_variables(const std::vector<smt_terms::STer
 /**
  * @brief Test uniqueness and maximum value for a limb decomposition
  */
-void test_limb_uniqueness_and_maximum(
-    smt_solver::Solver& s,
-    const std::shared_ptr<smt_relation_recorder::OperationTrace>& recording_trace_main,
-    const LimbDecomposition& decomp,
-    std::string& out_unique,
-    std::string& out_max)
+void test_limb_uniqueness_and_maximum(smt_solver::Solver& s,
+                                      const smt_relation_recorder::OperationTrace& recording_trace_main,
+                                      const LimbDecomposition& decomp,
+                                      std::string& out_unique,
+                                      std::string& out_max)
 {
     // Test uniqueness
     s.push();
@@ -413,9 +412,9 @@ void test_limb_uniqueness_and_maximum(
     std::vector<std::string> n1, n2;
 
     smt_translator_relations::replay_translator_decomposition_relation(
-        *recording_trace_main, &s, "V1", true, f1, v1, n1);
+        recording_trace_main, &s, "V1", true, f1, v1, n1);
     smt_translator_relations::replay_translator_decomposition_relation(
-        *recording_trace_main, &s, "V2", true, f2, v2, n2);
+        recording_trace_main, &s, "V2", true, f2, v2, n2);
 
     smt_translator_relations::create_range_constraint_formulas(&s, v1, n1, "constraint", 16384);
     smt_translator_relations::create_range_constraint_formulas(&s, v2, n2, "constraint", 16384);
@@ -473,8 +472,7 @@ void test_limb_uniqueness_and_maximum(
     std::vector<smt_terms::STerm> fm, vm;
     std::vector<std::string> nm;
 
-    smt_translator_relations::replay_translator_decomposition_relation(
-        *recording_trace_main, &s, "M", true, fm, vm, nm);
+    smt_translator_relations::replay_translator_decomposition_relation(recording_trace_main, &s, "M", true, fm, vm, nm);
     smt_translator_relations::create_range_constraint_formulas(&s, vm, nm, "constraint", 16384);
 
     // Constrain op and lagrange_even_in_minicircuit wires to 1
@@ -529,13 +527,12 @@ void test_limb_uniqueness_and_maximum(
     out_max = uint256_to_decimal_string(max_found);
 }
 
-void test_lo_hi_uniqueness_and_maximum(
-    smt_solver::Solver& s,
-    const std::shared_ptr<smt_relation_recorder::OperationTrace>& recording_trace_main,
-    const std::string& var_name,
-    const std::vector<uint256_t>& limb_max_values,
-    std::string& out_unique,
-    std::string& out_max)
+void test_lo_hi_uniqueness_and_maximum(smt_solver::Solver& s,
+                                       const smt_relation_recorder::OperationTrace& recording_trace_main,
+                                       const std::string& var_name,
+                                       const std::vector<uint256_t>& limb_max_values,
+                                       std::string& out_unique,
+                                       std::string& out_max)
 {
     // Determine coordinate (x, y, or z) and level (lo or hi, or 1 or 2 for z)
     bool is_x = (var_name == "x_lo" || var_name == "x_hi");
@@ -578,9 +575,9 @@ void test_lo_hi_uniqueness_and_maximum(
     std::vector<std::string> n1, n2;
 
     smt_translator_relations::replay_translator_decomposition_relation(
-        *recording_trace_main, &s, "V1", true, f1, v1, n1);
+        recording_trace_main, &s, "V1", true, f1, v1, n1);
     smt_translator_relations::replay_translator_decomposition_relation(
-        *recording_trace_main, &s, "V2", true, f2, v2, n2);
+        recording_trace_main, &s, "V2", true, f2, v2, n2);
 
     // Assert decomposition relations for the composite values only (not the limb decompositions)
     smt_translator_relations::assert_formulas_zero(
@@ -755,8 +752,7 @@ void test_lo_hi_uniqueness_and_maximum(
     std::vector<smt_terms::STerm> fm, vm;
     std::vector<std::string> nm;
 
-    smt_translator_relations::replay_translator_decomposition_relation(
-        *recording_trace_main, &s, "M", true, fm, vm, nm);
+    smt_translator_relations::replay_translator_decomposition_relation(recording_trace_main, &s, "M", true, fm, vm, nm);
     smt_translator_relations::assert_formulas_zero(&s, { fm[lo_relation], fm[hi_relation] });
 
     // Find the variables
@@ -797,15 +793,6 @@ void test_lo_hi_uniqueness_and_maximum(
     }
 
     s.pop();
-}
-
-TEST(TranslatorRelationVerification, test_relation_formulas_extraction)
-{
-    smt_solver::Solver s("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001",
-                         smt_solver::default_solver_config);
-    std::vector<smt_terms::STerm> formulas =
-        smt_translator_relations::extract_translator_decomposition_relation_formulas(&s);
-    ASSERT_EQ(formulas.size(), 48); // 48 subrelations in translator decomposition
 }
 
 TEST(TranslatorRelationVerification, test_translator_decompositions)
@@ -947,8 +934,6 @@ TEST(TranslatorRelationVerification, test_translator_decompositions)
 
 TEST(TranslatorRelationVerification, test_opcode_constraint_relation)
 {
-    // Reset state from any previous tests
-    smt_translator_relations::reset_solver_state();
 
     smt_solver::Solver s("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001",
                          smt_solver::default_solver_config);
@@ -959,7 +944,7 @@ TEST(TranslatorRelationVerification, test_opcode_constraint_relation)
     // Get the opcode constraint relation formulas
     auto recording_trace_opcode = smt_translator_relations::record_translator_opcode_constraint_relation();
     smt_translator_relations::replay_translator_opcode_constraint_relation(
-        *recording_trace_opcode, &s, "", formulas, vars, names);
+        recording_trace_opcode, &s, "", formulas, vars, names);
 
     std::cerr << "\n" << std::string(80, '=') << "\n";
     std::cerr << "Testing Translator Opcode Constraint Relation\n";
@@ -1041,351 +1026,4 @@ TEST(TranslatorRelationVerification, test_opcode_constraint_relation)
     formulas.clear();
     vars.clear();
     names.clear();
-}
-
-TEST(TranslatorRelationVerification, test_multiple_solver_issue)
-{
-    // Reset state from any previous tests
-    smt_translator_relations::reset_solver_state();
-
-    std::cerr << "\n" << std::string(80, '=') << "\n";
-    std::cerr << "Testing Multiple Solver Usage Issue\n";
-    std::cerr << std::string(80, '=') << "\n\n";
-
-    // First solver
-    {
-        std::cerr << "Creating first solver...\n";
-        smt_solver::Solver s1("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001",
-                              smt_solver::default_solver_config);
-
-        std::vector<smt_terms::STerm> formulas1, vars1;
-        std::vector<std::string> names1;
-
-        auto recording_trace_opcode1 = smt_translator_relations::record_translator_opcode_constraint_relation();
-        smt_translator_relations::replay_translator_opcode_constraint_relation(
-            *recording_trace_opcode1, &s1, "S1", formulas1, vars1, names1);
-
-        std::cerr << "First solver created " << formulas1.size() << " formulas with " << vars1.size() << " variables\n";
-
-        // Find lagrange_mini_masking and op for first solver
-        smt_terms::STerm lagr_mini1, op_var1;
-        for (size_t i = 0; i < names1.size(); ++i) {
-            if (names1[i] == "S1_lagrange_mini_masking") {
-                lagr_mini1 = vars1[i];
-            }
-            if (names1[i] == "S1_op") {
-                op_var1 = vars1[i];
-            }
-        }
-
-        smt_terms::STerm zero1 = smt_terms::FFConst("0", &s1, 10);
-        s1.assertFormula(s1.term_manager.mkTerm(
-            cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(lagr_mini1), static_cast<cvc5::Term>(zero1) }));
-
-        for (const auto& formula : formulas1) {
-            s1.assertFormula(s1.term_manager.mkTerm(
-                cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(formula), static_cast<cvc5::Term>(zero1) }));
-        }
-
-        bool sat1 = s1.check();
-        std::cerr << "First solver result: " << (sat1 ? "SAT" : "UNSAT") << "\n";
-        ASSERT_TRUE(sat1);
-        std::cerr << "First solver completed successfully\n\n";
-    }
-
-    // Reset solver state
-    std::cerr << "Resetting solver state...\n";
-    smt_translator_relations::reset_solver_state();
-
-    // Second solver
-    {
-        std::cerr << "Creating second solver...\n";
-        smt_solver::Solver s2("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001",
-                              smt_solver::default_solver_config);
-
-        std::vector<smt_terms::STerm> formulas2, vars2;
-        std::vector<std::string> names2;
-
-        auto recording_trace_opcode2 = smt_translator_relations::record_translator_opcode_constraint_relation();
-        smt_translator_relations::replay_translator_opcode_constraint_relation(
-            *recording_trace_opcode2, &s2, "S2", formulas2, vars2, names2);
-
-        std::cerr << "Second solver created " << formulas2.size() << " formulas with " << vars2.size()
-                  << " variables\n";
-
-        // Find lagrange_mini_masking and op for second solver
-        smt_terms::STerm lagr_mini2, op_var2;
-        for (size_t i = 0; i < names2.size(); ++i) {
-            if (names2[i] == "S2_lagrange_mini_masking") {
-                lagr_mini2 = vars2[i];
-            }
-            if (names2[i] == "S2_op") {
-                op_var2 = vars2[i];
-            }
-        }
-
-        smt_terms::STerm zero2 = smt_terms::FFConst("0", &s2, 10);
-        std::cerr << "Asserting lagrange_mini_masking = 0...\n";
-        s2.assertFormula(s2.term_manager.mkTerm(
-            cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(lagr_mini2), static_cast<cvc5::Term>(zero2) }));
-
-        std::cerr << "Asserting relation formulas...\n";
-        for (size_t i = 0; i < formulas2.size(); ++i) {
-            std::cerr << "  Asserting formula " << i << "...\n";
-            try {
-                s2.assertFormula(s2.term_manager.mkTerm(
-                    cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(formulas2[i]), static_cast<cvc5::Term>(zero2) }));
-                std::cerr << "    Success\n";
-            } catch (const std::exception& e) {
-                std::cerr << "    ERROR: " << e.what() << "\n";
-                throw;
-            }
-        }
-
-        std::cerr << "Checking satisfiability...\n";
-        bool sat2 = s2.check();
-        std::cerr << "Second solver result: " << (sat2 ? "SAT" : "UNSAT") << "\n";
-        ASSERT_TRUE(sat2);
-        std::cerr << "Second solver completed successfully\n\n";
-    }
-
-    std::cerr << std::string(80, '=') << "\n";
-    std::cerr << "Multiple solver test passed ✓\n";
-    std::cerr << std::string(80, '=') << "\n\n";
-}
-
-// This test is DISABLED by default because it requires a clean state
-// Run it alone with: --gtest_filter="TranslatorRelationVerification.test_multiple_solver_without_scopes"
-TEST(TranslatorRelationVerification, DISABLED_test_multiple_solver_without_scopes)
-{
-    // Reset state from any previous tests
-    smt_translator_relations::reset_solver_state();
-
-    std::cerr << "\n" << std::string(80, '=') << "\n";
-    std::cerr << "Testing Multiple Solvers Without Scopes (Diagnostic Test)\n";
-    std::cerr << "This test demonstrates proper cleanup to avoid use-after-free\n";
-    std::cerr << "NOTE: This test should be run alone to avoid state contamination\n";
-    std::cerr << std::string(80, '=') << "\n\n";
-
-    std::cerr << "Creating first solver...\n";
-    smt_solver::Solver* s1 = new smt_solver::Solver("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001",
-                                                    smt_solver::default_solver_config);
-
-    std::vector<smt_terms::STerm> formulas1, vars1;
-    std::vector<std::string> names1;
-
-    smt_translator_relations::instantiate_translator_opcode_constraint_with_ffterm_return_formulas(
-        s1, "S1", formulas1, vars1, names1);
-
-    std::cerr << "First solver created " << formulas1.size() << " formulas\n";
-    std::cerr << "First formula's solver pointer: " << formulas1[0].solver << "\n";
-
-    std::cerr << "\nDemonstrating the issue:\n";
-    std::cerr << "Without the smart pointer fix, keeping terms alive after deleting solver\n";
-    std::cerr << "would cause dangling pointers and crashes.\n\n";
-
-    std::cerr << "With the smart pointer fix:\n";
-    std::cerr << "- Terms hold shared_ptr to solver (via non-owning wrapper for raw pointers)\n";
-    std::cerr << "- Proper cleanup: Clear terms before deleting solver\n\n";
-
-    // PROPER CLEANUP: Clear terms before deleting solver
-    std::cerr << "Clearing term vectors...\n";
-    formulas1.clear();
-    vars1.clear();
-    names1.clear();
-
-    // Delete first solver (now safe)
-    std::cerr << "Deleting first solver (now safe after clearing terms)...\n";
-    delete s1;
-    s1 = nullptr;
-
-    // Reset solver state
-    std::cerr << "Resetting solver state...\n";
-    smt_translator_relations::reset_solver_state();
-
-    // Create second solver
-    std::cerr << "Creating second solver...\n";
-    smt_solver::Solver* s2 = new smt_solver::Solver("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001",
-                                                    smt_solver::default_solver_config);
-
-    std::vector<smt_terms::STerm> formulas2, vars2;
-    std::vector<std::string> names2;
-
-    smt_translator_relations::instantiate_translator_opcode_constraint_with_ffterm_return_formulas(
-        s2, "S2", formulas2, vars2, names2);
-
-    std::cerr << "Second solver created " << formulas2.size() << " formulas\n";
-    std::cerr << "Second formula's solver pointer: " << formulas2[0].solver << "\n\n";
-
-    std::cerr << "Success! Multiple solvers work correctly with proper cleanup.\n\n";
-
-    // Clean up second solver
-    formulas2.clear();
-    vars2.clear();
-    names2.clear();
-    delete s2;
-
-    std::cerr << std::string(80, '=') << "\n";
-    std::cerr << "Multiple solver test completed ✓\n";
-    std::cerr << "Key takeaway: Always clear term vectors before deleting solver\n";
-    std::cerr << std::string(80, '=') << "\n\n";
-}
-
-TEST(TranslatorRelationVerification, print_accumulator_limb_formulas)
-{
-    // Reset state from any previous tests
-    smt_translator_relations::reset_solver_state();
-
-    smt_solver::Solver s("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001",
-                         smt_solver::default_solver_config);
-
-    std::vector<smt_terms::STerm> formulas, vars;
-    std::vector<std::string> names;
-
-    smt_translator_relations::instantiate_translator_decomposition_with_iterm_return_formulas(
-        &s, "", formulas, vars, names);
-
-    // Apply range constraints
-    smt_translator_relations::create_range_constraint_formulas(&s, vars, names, "constraint", 16384);
-
-    std::cerr << "\n" << std::string(80, '=') << "\n";
-    std::cerr << "Accumulator Binary Limb Formulas\n";
-    std::cerr << std::string(80, '=') << "\n\n";
-
-    // Print formulas for relations 0-3 (accumulator decomposition) and 34-37 (tail constraints)
-    std::vector<size_t> relation_indices = { 0, 1, 2, 3, 34, 35, 36, 37 };
-    std::vector<std::string> relation_names = {
-        "Relation 0: accumulators_binary_limbs_0 decomposition",
-        "Relation 1: accumulators_binary_limbs_1 decomposition",
-        "Relation 2: accumulators_binary_limbs_2 decomposition",
-        "Relation 3: accumulators_binary_limbs_3 decomposition",
-        "Relation 34: accumulator_low_limbs tail constraint (rc_4 * 4 = tail)",
-        "Relation 35: accumulator_low_limbs_shift tail constraint (rc_4_shift * 4 = tail_shift)",
-        "Relation 36: accumulator_high_limbs tail constraint (rc_4 * 4 = tail)",
-        "Relation 37: accumulator_high_limbs_shift tail constraint (rc_3_shift * 64 = rc_4_shift)"
-    };
-
-    for (size_t i = 0; i < relation_indices.size(); ++i) {
-        size_t idx = relation_indices[i];
-        std::cerr << "\n" << relation_names[i] << ":\n";
-        std::cerr << formulas[idx].term << "\n";
-    }
-
-    std::cerr << "\n" << std::string(80, '=') << "\n\n";
-}
-
-TEST(TranslatorRelationVerification, print_accumulator_limb_0_uniqueness_check)
-{
-    smt_solver::Solver s("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001",
-                         smt_solver::default_solver_config);
-
-    auto decomp_map = get_translator_decomposition_map();
-    const auto& decomp = decomp_map[0]; // accumulators_binary_limbs_0
-
-    std::cerr << "\n" << std::string(80, '=') << "\n";
-    std::cerr << "Uniqueness Check for: " << decomp.limb_name << "\n";
-    std::cerr << std::string(80, '=') << "\n\n";
-
-    // Create two instances V1 and V2
-    std::vector<smt_terms::STerm> f1, v1, f2, v2;
-    std::vector<std::string> n1, n2;
-
-    auto recording_trace_uniqueness = smt_translator_relations::record_translator_decomposition_relation();
-    smt_translator_relations::replay_translator_decomposition_relation(
-        *recording_trace_uniqueness, &s, "V1", true, f1, v1, n1);
-    smt_translator_relations::replay_translator_decomposition_relation(
-        *recording_trace_uniqueness, &s, "V2", true, f2, v2, n2);
-
-    smt_translator_relations::create_range_constraint_formulas(&s, v1, n1, "constraint", 16384);
-    smt_translator_relations::create_range_constraint_formulas(&s, v2, n2, "constraint", 16384);
-
-    std::cerr << "Step 1: Apply range constraints (0 <= rc < 16384) to all variables with 'constraint' in name\n";
-
-    // Check if op and lagrange variables exist
-    [[maybe_unused]] bool found_v1_op = false, found_v2_op = false;
-    for (size_t i = 0; i < n1.size(); ++i) {
-        if (n1[i] == "V1_op") {
-            found_v1_op = true;
-            std::cerr << "  Found V1_op variable\n";
-        }
-        if (n1[i].find("lagrange") != std::string::npos) {
-            std::cerr << "  Found V1 variable: " << n1[i] << "\n";
-        }
-    }
-    for (size_t i = 0; i < n2.size(); ++i) {
-        if (n2[i] == "V2_op") {
-            found_v2_op = true;
-            std::cerr << "  Found V2_op variable\n";
-        }
-    }
-    std::cerr << "\n";
-
-    smt_translator_relations::create_range_constraint_formulas(&s, v1, n1, "constraint", 16384);
-    smt_translator_relations::create_range_constraint_formulas(&s, v2, n2, "constraint", 16384);
-
-    std::cerr << "Step 2: Assert decomposition relation formulas = 0\n";
-    std::cerr << "  V1 Relation " << decomp.relation_index << " (decomposition):\n    "
-              << f1[decomp.relation_index].term << "\n\n";
-    std::cerr << "  V1 Relation " << decomp.tail_relation_index << " (tail constraint):\n    "
-              << f1[decomp.tail_relation_index].term << "\n\n";
-    std::cerr << "  V2 Relation " << decomp.relation_index << " (decomposition):\n    "
-              << f2[decomp.relation_index].term << "\n\n";
-    std::cerr << "  V2 Relation " << decomp.tail_relation_index << " (tail constraint):\n    "
-              << f2[decomp.tail_relation_index].term << "\n\n";
-
-    smt_translator_relations::assert_formulas_zero(&s,
-                                                   { f1[decomp.relation_index],
-                                                     f1[decomp.tail_relation_index],
-                                                     f2[decomp.relation_index],
-                                                     f2[decomp.tail_relation_index] });
-
-    auto limb1 = find_mapped_limb_variables(v1, n1, decomp, "V1");
-    auto limb2 = find_mapped_limb_variables(v2, n2, decomp, "V2");
-
-    std::cerr << "Step 3: Constrain V1 and V2 limbs to be equal\n";
-    std::cerr << "  V1_" << decomp.limb_name << " == V2_" << decomp.limb_name << "\n\n";
-    s.assertFormula(s.term_manager.mkTerm(
-        cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(limb1.limb_var), static_cast<cvc5::Term>(limb2.limb_var) }));
-
-    std::cerr << "Step 4: Assert at least one range constraint differs\n";
-    std::cerr << "  (";
-    for (size_t i = 0; i < limb1.rc_vars.size(); ++i) {
-        if (i > 0)
-            std::cerr << " OR ";
-        std::cerr << "V1_" << decomp.rc_names[i] << " != V2_" << decomp.rc_names[i];
-    }
-    std::cerr << ")\n\n";
-
-    smt_terms::STerm zero = smt_terms::FFIConst("0", &s, 10);
-    std::vector<cvc5::Term> diffs;
-    for (size_t i = 0; i < limb1.rc_vars.size(); ++i) {
-        smt_terms::STerm diff = limb1.rc_vars[i] - limb2.rc_vars[i];
-        diffs.push_back(s.term_manager.mkTerm(
-            cvc5::Kind::NOT,
-            { s.term_manager.mkTerm(cvc5::Kind::EQUAL,
-                                    { static_cast<cvc5::Term>(diff), static_cast<cvc5::Term>(zero) }) }));
-    }
-    cvc5::Term disj = diffs[0];
-    for (size_t i = 1; i < diffs.size(); ++i) {
-        disj = s.term_manager.mkTerm(cvc5::Kind::OR, { disj, diffs[i] });
-    }
-    s.assertFormula(disj);
-
-    std::cerr << "Step 5: Check if satisfiable (SAT = NOT_UNIQUE, UNSAT = UNIQUE)\n";
-    bool result = s.check();
-    std::cerr << "  Result: " << (result ? "SAT (NOT_UNIQUE)" : "UNSAT (UNIQUE)") << "\n\n";
-
-    if (result) {
-        std::cerr << "Step 6: Solver found a counterexample - printing values:\n";
-        std::cerr << "  V1_" << decomp.limb_name << " = " << s.get(limb1.limb_var) << "\n";
-        std::cerr << "  V2_" << decomp.limb_name << " = " << s.get(limb2.limb_var) << "\n\n";
-
-        std::cerr << "  Range constraints:\n";
-        for (size_t i = 0; i < limb1.rc_vars.size(); ++i) {
-            std::cerr << "    V1_" << decomp.rc_names[i] << " = " << s.get(limb1.rc_vars[i]) << "\n";
-            std::cerr << "    V2_" << decomp.rc_names[i] << " = " << s.get(limb2.rc_vars[i]) << "\n";
-        }
-    }
-
-    std::cerr << "\n" << std::string(80, '=') << "\n\n";
 }
