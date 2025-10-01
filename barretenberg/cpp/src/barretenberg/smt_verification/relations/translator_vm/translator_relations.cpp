@@ -37,15 +37,15 @@ struct SymFF {
     friend SymFF operator*(const uint256_t& c, const SymFF& x) { return SymFF(c) * x; }
     friend SymFF operator*(const bb::fr& c, const SymFF& x)
     {
-        return SymFF(STerm(c, x.t.solver, TermType::FFTerm) * x.t);
+        return SymFF(STerm(c, x.t.solver.get(), TermType::FFTerm) * x.t);
     }
     friend SymFF operator+(const bb::fr& c, const SymFF& x)
     {
-        return SymFF(STerm(c, x.t.solver, TermType::FFTerm) + x.t);
+        return SymFF(STerm(c, x.t.solver.get(), TermType::FFTerm) + x.t);
     }
     friend SymFF operator-(const bb::fr& c, const SymFF& x)
     {
-        return SymFF(STerm(c, x.t.solver, TermType::FFTerm) - x.t);
+        return SymFF(STerm(c, x.t.solver.get(), TermType::FFTerm) - x.t);
     }
     operator STerm() const { return t; }
 };
@@ -84,15 +84,15 @@ struct SymFFI {
     friend SymFFI operator*(const uint256_t& c, const SymFFI& x) { return SymFFI(c) * x; }
     friend SymFFI operator*(const bb::fr& c, const SymFFI& x)
     {
-        return SymFFI(STerm(c, x.t.solver, TermType::FFITerm) * x.t);
+        return SymFFI(STerm(c, x.t.solver.get(), TermType::FFITerm) * x.t);
     }
     friend SymFFI operator+(const bb::fr& c, const SymFFI& x)
     {
-        return SymFFI(STerm(c, x.t.solver, TermType::FFITerm) + x.t);
+        return SymFFI(STerm(c, x.t.solver.get(), TermType::FFITerm) + x.t);
     }
     friend SymFFI operator-(const bb::fr& c, const SymFFI& x)
     {
-        return SymFFI(STerm(c, x.t.solver, TermType::FFITerm) - x.t);
+        return SymFFI(STerm(c, x.t.solver.get(), TermType::FFITerm) - x.t);
     }
     operator STerm() const { return t; }
 };

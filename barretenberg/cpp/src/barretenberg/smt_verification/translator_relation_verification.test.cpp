@@ -798,6 +798,9 @@ TEST(TranslatorRelationVerification, test_relation_formulas_extraction)
 
 TEST(TranslatorRelationVerification, test_translator_decompositions)
 {
+    // Reset state from any previous tests
+    smt_translator_relations::reset_solver_state();
+
     smt_solver::Solver s("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001",
                          smt_solver::default_solver_config);
 
@@ -935,6 +938,9 @@ TEST(TranslatorRelationVerification, test_translator_decompositions)
 
 TEST(TranslatorRelationVerification, test_opcode_constraint_relation)
 {
+    // Reset state from any previous tests
+    smt_translator_relations::reset_solver_state();
+
     smt_solver::Solver s("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001",
                          smt_solver::default_solver_config);
 
@@ -1020,10 +1026,205 @@ TEST(TranslatorRelationVerification, test_opcode_constraint_relation)
     std::cerr << "Opcode constraint relation test passed ✓\n";
     std::cerr << "The relation correctly enforces op ∈ {0, 3, 4, 8}\n";
     std::cerr << std::string(80, '=') << "\n\n";
+
+    // Clean up to avoid state contamination with subsequent tests
+    formulas.clear();
+    vars.clear();
+    names.clear();
+}
+
+TEST(TranslatorRelationVerification, test_multiple_solver_issue)
+{
+    // Reset state from any previous tests
+    smt_translator_relations::reset_solver_state();
+
+    std::cerr << "\n" << std::string(80, '=') << "\n";
+    std::cerr << "Testing Multiple Solver Usage Issue\n";
+    std::cerr << std::string(80, '=') << "\n\n";
+
+    // First solver
+    {
+        std::cerr << "Creating first solver...\n";
+        smt_solver::Solver s1("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001",
+                              smt_solver::default_solver_config);
+
+        std::vector<smt_terms::STerm> formulas1, vars1;
+        std::vector<std::string> names1;
+
+        smt_translator_relations::instantiate_translator_opcode_constraint_with_ffterm_return_formulas(
+            &s1, "S1", formulas1, vars1, names1);
+
+        std::cerr << "First solver created " << formulas1.size() << " formulas with " << vars1.size() << " variables\n";
+
+        // Find lagrange_mini_masking and op for first solver
+        smt_terms::STerm lagr_mini1, op_var1;
+        for (size_t i = 0; i < names1.size(); ++i) {
+            if (names1[i] == "S1_lagrange_mini_masking") {
+                lagr_mini1 = vars1[i];
+            }
+            if (names1[i] == "S1_op") {
+                op_var1 = vars1[i];
+            }
+        }
+
+        smt_terms::STerm zero1 = smt_terms::FFConst("0", &s1, 10);
+        s1.assertFormula(s1.term_manager.mkTerm(
+            cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(lagr_mini1), static_cast<cvc5::Term>(zero1) }));
+
+        for (const auto& formula : formulas1) {
+            s1.assertFormula(s1.term_manager.mkTerm(
+                cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(formula), static_cast<cvc5::Term>(zero1) }));
+        }
+
+        bool sat1 = s1.check();
+        std::cerr << "First solver result: " << (sat1 ? "SAT" : "UNSAT") << "\n";
+        ASSERT_TRUE(sat1);
+        std::cerr << "First solver completed successfully\n\n";
+    }
+
+    // Reset solver state
+    std::cerr << "Resetting solver state...\n";
+    smt_translator_relations::reset_solver_state();
+
+    // Second solver
+    {
+        std::cerr << "Creating second solver...\n";
+        smt_solver::Solver s2("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001",
+                              smt_solver::default_solver_config);
+
+        std::vector<smt_terms::STerm> formulas2, vars2;
+        std::vector<std::string> names2;
+
+        std::cerr << "Instantiating relation with second solver...\n";
+        smt_translator_relations::instantiate_translator_opcode_constraint_with_ffterm_return_formulas(
+            &s2, "S2", formulas2, vars2, names2);
+
+        std::cerr << "Second solver created " << formulas2.size() << " formulas with " << vars2.size()
+                  << " variables\n";
+
+        // Find lagrange_mini_masking and op for second solver
+        smt_terms::STerm lagr_mini2, op_var2;
+        for (size_t i = 0; i < names2.size(); ++i) {
+            if (names2[i] == "S2_lagrange_mini_masking") {
+                lagr_mini2 = vars2[i];
+            }
+            if (names2[i] == "S2_op") {
+                op_var2 = vars2[i];
+            }
+        }
+
+        smt_terms::STerm zero2 = smt_terms::FFConst("0", &s2, 10);
+        std::cerr << "Asserting lagrange_mini_masking = 0...\n";
+        s2.assertFormula(s2.term_manager.mkTerm(
+            cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(lagr_mini2), static_cast<cvc5::Term>(zero2) }));
+
+        std::cerr << "Asserting relation formulas...\n";
+        for (size_t i = 0; i < formulas2.size(); ++i) {
+            std::cerr << "  Asserting formula " << i << "...\n";
+            try {
+                s2.assertFormula(s2.term_manager.mkTerm(
+                    cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(formulas2[i]), static_cast<cvc5::Term>(zero2) }));
+                std::cerr << "    Success\n";
+            } catch (const std::exception& e) {
+                std::cerr << "    ERROR: " << e.what() << "\n";
+                throw;
+            }
+        }
+
+        std::cerr << "Checking satisfiability...\n";
+        bool sat2 = s2.check();
+        std::cerr << "Second solver result: " << (sat2 ? "SAT" : "UNSAT") << "\n";
+        ASSERT_TRUE(sat2);
+        std::cerr << "Second solver completed successfully\n\n";
+    }
+
+    std::cerr << std::string(80, '=') << "\n";
+    std::cerr << "Multiple solver test passed ✓\n";
+    std::cerr << std::string(80, '=') << "\n\n";
+}
+
+// This test is DISABLED by default because it requires a clean state
+// Run it alone with: --gtest_filter="TranslatorRelationVerification.test_multiple_solver_without_scopes"
+TEST(TranslatorRelationVerification, DISABLED_test_multiple_solver_without_scopes)
+{
+    // Reset state from any previous tests
+    smt_translator_relations::reset_solver_state();
+
+    std::cerr << "\n" << std::string(80, '=') << "\n";
+    std::cerr << "Testing Multiple Solvers Without Scopes (Diagnostic Test)\n";
+    std::cerr << "This test demonstrates proper cleanup to avoid use-after-free\n";
+    std::cerr << "NOTE: This test should be run alone to avoid state contamination\n";
+    std::cerr << std::string(80, '=') << "\n\n";
+
+    std::cerr << "Creating first solver...\n";
+    smt_solver::Solver* s1 = new smt_solver::Solver("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001",
+                                                    smt_solver::default_solver_config);
+
+    std::vector<smt_terms::STerm> formulas1, vars1;
+    std::vector<std::string> names1;
+
+    smt_translator_relations::instantiate_translator_opcode_constraint_with_ffterm_return_formulas(
+        s1, "S1", formulas1, vars1, names1);
+
+    std::cerr << "First solver created " << formulas1.size() << " formulas\n";
+    std::cerr << "First formula's solver pointer: " << formulas1[0].solver << "\n";
+
+    std::cerr << "\nDemonstrating the issue:\n";
+    std::cerr << "Without the smart pointer fix, keeping terms alive after deleting solver\n";
+    std::cerr << "would cause dangling pointers and crashes.\n\n";
+
+    std::cerr << "With the smart pointer fix:\n";
+    std::cerr << "- Terms hold shared_ptr to solver (via non-owning wrapper for raw pointers)\n";
+    std::cerr << "- Proper cleanup: Clear terms before deleting solver\n\n";
+
+    // PROPER CLEANUP: Clear terms before deleting solver
+    std::cerr << "Clearing term vectors...\n";
+    formulas1.clear();
+    vars1.clear();
+    names1.clear();
+
+    // Delete first solver (now safe)
+    std::cerr << "Deleting first solver (now safe after clearing terms)...\n";
+    delete s1;
+    s1 = nullptr;
+
+    // Reset solver state
+    std::cerr << "Resetting solver state...\n";
+    smt_translator_relations::reset_solver_state();
+
+    // Create second solver
+    std::cerr << "Creating second solver...\n";
+    smt_solver::Solver* s2 = new smt_solver::Solver("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001",
+                                                    smt_solver::default_solver_config);
+
+    std::vector<smt_terms::STerm> formulas2, vars2;
+    std::vector<std::string> names2;
+
+    smt_translator_relations::instantiate_translator_opcode_constraint_with_ffterm_return_formulas(
+        s2, "S2", formulas2, vars2, names2);
+
+    std::cerr << "Second solver created " << formulas2.size() << " formulas\n";
+    std::cerr << "Second formula's solver pointer: " << formulas2[0].solver << "\n\n";
+
+    std::cerr << "Success! Multiple solvers work correctly with proper cleanup.\n\n";
+
+    // Clean up second solver
+    formulas2.clear();
+    vars2.clear();
+    names2.clear();
+    delete s2;
+
+    std::cerr << std::string(80, '=') << "\n";
+    std::cerr << "Multiple solver test completed ✓\n";
+    std::cerr << "Key takeaway: Always clear term vectors before deleting solver\n";
+    std::cerr << std::string(80, '=') << "\n\n";
 }
 
 TEST(TranslatorRelationVerification, print_accumulator_limb_formulas)
 {
+    // Reset state from any previous tests
+    smt_translator_relations::reset_solver_state();
+
     smt_solver::Solver s("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001",
                          smt_solver::default_solver_config);
 
