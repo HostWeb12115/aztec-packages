@@ -4,6 +4,7 @@
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/relations/translator_vm/translator_decomposition_relation_impl.hpp"
 #include "barretenberg/relations/translator_vm/translator_extra_relations_impl.hpp"
+#include "barretenberg/relations/translator_vm/translator_non_native_field_relation_impl.hpp"
 #include "barretenberg/smt_verification/relations/relation_operation_recorder.hpp"
 #include "barretenberg/smt_verification/solver/solver.hpp"
 #include "barretenberg/smt_verification/terms/term.hpp"
@@ -364,6 +365,65 @@ OperationTrace record_translator_accumulator_transfer_relation()
     return *trace;
 }
 
+OperationTrace record_translator_non_native_field_relation()
+{
+    auto trace = std::make_shared<OperationTrace>();
+
+    RecordingFF::default_trace = trace;
+
+    using Flavor = bb::TranslatorFlavor;
+    using AllEntities = typename Flavor::AllEntities<RecordingFF>;
+
+    AllEntities symbolic_all_entities;
+    std::vector<std::reference_wrapper<RecordingFF>> refs;
+    std::vector<std::string> names;
+
+    for (auto [name, entity] : zip_view(symbolic_all_entities.get_labels(), symbolic_all_entities.get_all())) {
+        names.push_back(name);
+        refs.push_back(std::ref(entity));
+    }
+
+    for (size_t i = 0; i < refs.size(); ++i) {
+        if (names[i] == "lagrange_even_in_minicircuit" || names[i] == "op") {
+            refs[i].get() = RecordingFF(trace, static_cast<uint64_t>(1));
+        } else {
+            refs[i].get() = RecordingFF(trace, names[i]);
+        }
+    }
+
+    std::tuple<RecordingAccumulator<5>, RecordingAccumulator<5>, RecordingAccumulator<2>> acc;
+
+    std::apply([&](auto&... a) { ((a.val = RecordingFF(trace, static_cast<uint64_t>(0))), ...); }, acc);
+
+    using NNFRelation = bb::TranslatorNonNativeFieldRelationImpl<RecordingFF>;
+    using RelationParams = bb::RelationParameters<RecordingFF>;
+
+    RelationParams params;
+    // Create symbolic variables for evaluation_input_x (5 limbs)
+    for (size_t i = 0; i < params.evaluation_input_x.size(); ++i) {
+        params.evaluation_input_x[i] = RecordingFF(trace, "evaluation_input_x_" + std::to_string(i));
+    }
+    // Create symbolic variables for batching_challenge_v (4 powers, each with 5 limbs)
+    for (size_t i = 0; i < params.batching_challenge_v.size(); ++i) {
+        for (size_t j = 0; j < params.batching_challenge_v[i].size(); ++j) {
+            params.batching_challenge_v[i][j] =
+                RecordingFF(trace, "batching_challenge_v_" + std::to_string(i) + "_" + std::to_string(j));
+        }
+    }
+
+    RecordingFF scaling_factor(trace, static_cast<uint64_t>(1));
+
+    NNFRelation::template accumulate<decltype(acc), AllEntities, RelationParams>(
+        acc, symbolic_all_entities, params, scaling_factor);
+
+    size_t acc_idx = 0;
+    std::apply([&](auto&... a) { ((trace->set_accumulator_result(acc_idx++, a.val.operation_id.value())), ...); }, acc);
+
+    RecordingFF::default_trace.reset();
+
+    return *trace;
+}
+
 void replay_translator_decomposition_relation(const OperationTrace& trace,
                                               smt_solver::Solver* solver,
                                               const std::string& prefix,
@@ -465,6 +525,74 @@ void replay_translator_accumulator_transfer_relation(const OperationTrace& trace
         out_names.push_back(name_map[param_name]);
     }
 
+    out_formulas = OperationReplayer::replay(trace, solver, initial_variables, use_ffi);
+}
+
+void replay_translator_non_native_field_relation(const OperationTrace& trace,
+                                                 smt_solver::Solver* solver,
+                                                 const std::string& prefix,
+                                                 bool use_ffi,
+                                                 std::vector<STerm>& out_formulas,
+                                                 std::vector<STerm>& out_vars,
+                                                 std::vector<std::string>& out_names)
+{
+    using namespace smt_terms;
+
+    // Build the name mapping for entities
+    auto original_names = build_all_entity_member_names();
+    std::unordered_map<std::string, std::string> name_map;
+
+    for (const auto& name : original_names) {
+        if (prefix.empty()) {
+            name_map[name] = name;
+        } else {
+            name_map[name] = prefix + "_" + name;
+        }
+    }
+
+    // Add parameter names
+    for (size_t i = 0; i < 5; ++i) {
+        std::string param_name = "evaluation_input_x_" + std::to_string(i);
+        name_map[param_name] = prefix.empty() ? param_name : prefix + "_" + param_name;
+    }
+    for (size_t i = 0; i < 4; ++i) {
+        for (size_t j = 0; j < 5; ++j) {
+            std::string param_name = "batching_challenge_v_" + std::to_string(i) + "_" + std::to_string(j);
+            name_map[param_name] = prefix.empty() ? param_name : prefix + "_" + param_name;
+        }
+    }
+
+    // Generate initial variables
+    std::unordered_map<std::string, STerm> initial_variables;
+    out_vars.clear();
+    out_names.clear();
+
+    // Create entity variables
+    for (const auto& name : original_names) {
+        initial_variables[name] = use_ffi ? FFIVar(name_map[name], solver) : FFVar(name_map[name], solver);
+        out_vars.push_back(initial_variables[name]);
+        out_names.push_back(name_map[name]);
+    }
+
+    // Create parameter variables
+    for (size_t i = 0; i < 5; ++i) {
+        std::string param_name = "evaluation_input_x_" + std::to_string(i);
+        initial_variables[param_name] =
+            use_ffi ? FFIVar(name_map[param_name], solver) : FFVar(name_map[param_name], solver);
+        out_vars.push_back(initial_variables[param_name]);
+        out_names.push_back(name_map[param_name]);
+    }
+    for (size_t i = 0; i < 4; ++i) {
+        for (size_t j = 0; j < 5; ++j) {
+            std::string param_name = "batching_challenge_v_" + std::to_string(i) + "_" + std::to_string(j);
+            initial_variables[param_name] =
+                use_ffi ? FFIVar(name_map[param_name], solver) : FFVar(name_map[param_name], solver);
+            out_vars.push_back(initial_variables[param_name]);
+            out_names.push_back(name_map[param_name]);
+        }
+    }
+
+    // Replay operations with custom variable naming
     out_formulas = OperationReplayer::replay(trace, solver, initial_variables, use_ffi);
 }
 

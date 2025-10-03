@@ -302,6 +302,18 @@ class RecordingFF {
         return *this;
     }
 
+    RecordingFF& operator+=(const RecordingFF& other)
+    {
+        *this = *this + other;
+        return *this;
+    }
+
+    RecordingFF& operator-=(const RecordingFF& other)
+    {
+        *this = *this - other;
+        return *this;
+    }
+
     RecordingFF operator-() const
     {
         if (is_constant) {

@@ -158,9 +158,7 @@ void assert_formulas_zero(Solver* solver, const std::vector<STerm>& formulas)
     using namespace detail;
     STerm zero = FFIConst("0", solver, 10);
     for (const auto& formula : formulas) {
-        cvc5::Term eq = solver->term_manager.mkTerm(
-            cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(formula), static_cast<cvc5::Term>(zero) });
-        solver->assertFormula(eq);
+        formula == zero;
     }
 }
 
