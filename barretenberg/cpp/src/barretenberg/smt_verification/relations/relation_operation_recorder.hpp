@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <variant>
@@ -26,16 +27,12 @@ namespace smt_relation_recorder {
  * @brief Enum representing the type of field operation
  */
 enum class OpKind {
-    VAR,        // Variable/input
-    CONST_U64,  // Constant from uint64_t
-    CONST_I64,  // Constant from int64_t
-    CONST_INT,  // Constant from int
-    CONST_U256, // Constant from uint256_t
-    CONST_FR,   // Constant from bb::fr
-    ADD,        // Addition
-    SUB,        // Subtraction
-    MUL,        // Multiplication
-    NEG         // Negation
+    VAR,      // Variable/input
+    CONST_FR, // Constant from bb::fr
+    ADD,      // Addition
+    SUB,      // Subtraction
+    MUL,      // Multiplication
+    NEG       // Negation
 };
 
 /**
@@ -85,40 +82,9 @@ class OperationTrace {
     }
 
     /**
-     * @brief Record a constant
+     * @brief Record a constant field element
+     *
      */
-    size_t record_const_u64(uint64_t val)
-    {
-        Operation op(OpKind::CONST_U64, next_id++);
-        op.value = val;
-        operations.push_back(op);
-        return op.result_id;
-    }
-
-    size_t record_const_i64(int64_t val)
-    {
-        Operation op(OpKind::CONST_I64, next_id++);
-        op.value = val;
-        operations.push_back(op);
-        return op.result_id;
-    }
-
-    size_t record_const_int(int val)
-    {
-        Operation op(OpKind::CONST_INT, next_id++);
-        op.value = val;
-        operations.push_back(op);
-        return op.result_id;
-    }
-
-    size_t record_const_u256(const uint256_t& val)
-    {
-        Operation op(OpKind::CONST_U256, next_id++);
-        op.value = val;
-        operations.push_back(op);
-        return op.result_id;
-    }
-
     size_t record_const_fr(const bb::fr& val)
     {
         Operation op(OpKind::CONST_FR, next_id++);
@@ -169,66 +135,83 @@ class OperationTrace {
 class RecordingFF {
   public:
     std::shared_ptr<OperationTrace> trace;
-    size_t operation_id; // ID of the operation that produced this value
+    std::optional<size_t> operation_id; // ID of the operation that produced this value
+    bool is_constant;
+    bb::fr constant_value;
 
     // Thread-local trace used for default construction
     static inline thread_local std::shared_ptr<OperationTrace> default_trace;
 
     RecordingFF()
-        : trace(default_trace ? default_trace : std::make_shared<OperationTrace>())
-        , operation_id(trace->record_const_u64(0))
+        : trace()
+        , operation_id(std::nullopt)
+        , is_constant(true)
+        , constant_value(bb::fr::zero())
     {}
 
     // Single-argument constructors for integers (to avoid ambiguity)
     explicit RecordingFF(int val)
         : trace(default_trace ? default_trace : std::make_shared<OperationTrace>())
-        , operation_id(trace->record_const_int(val))
+        , operation_id(std::nullopt)
+        , is_constant(true)
+        , constant_value(bb::fr(val))
     {}
 
     explicit RecordingFF(uint64_t val)
         : trace(default_trace ? default_trace : std::make_shared<OperationTrace>())
-        , operation_id(trace->record_const_u64(val))
+        , operation_id(std::nullopt)
+        , is_constant(true)
+        , constant_value(bb::fr(val))
     {}
 
     // Single-argument constructor from uint256_t (for relation constants)
     explicit RecordingFF(const uint256_t& val)
         : trace(default_trace ? default_trace : std::make_shared<OperationTrace>())
-        , operation_id(trace->record_const_u256(val))
+        , operation_id(std::nullopt)
+        , is_constant(true)
+        , constant_value(bb::fr(val))
     {}
 
     explicit RecordingFF(std::shared_ptr<OperationTrace> t)
         : trace(t)
-        , operation_id(trace->record_const_u64(0))
+        , operation_id(std::nullopt)
+        , is_constant(true)
+        , constant_value(bb::fr::zero())
     {}
 
     explicit RecordingFF(std::shared_ptr<OperationTrace> t, uint64_t val)
         : trace(t)
-        , operation_id(trace->record_const_u64(val))
-    {}
-
-    explicit RecordingFF(std::shared_ptr<OperationTrace> t, int64_t val)
-        : trace(t)
-        , operation_id(trace->record_const_i64(val))
+        , operation_id(std::nullopt)
+        , is_constant(true)
+        , constant_value(bb::fr(val))
     {}
 
     explicit RecordingFF(std::shared_ptr<OperationTrace> t, int val)
         : trace(t)
-        , operation_id(trace->record_const_int(val))
+        , operation_id(std::nullopt)
+        , is_constant(true)
+        , constant_value(bb::fr(val))
     {}
 
     explicit RecordingFF(std::shared_ptr<OperationTrace> t, const uint256_t& val)
         : trace(t)
-        , operation_id(trace->record_const_u256(val))
+        , operation_id(std::nullopt)
+        , is_constant(true)
+        , constant_value(bb::fr(val))
     {}
 
     explicit RecordingFF(std::shared_ptr<OperationTrace> t, const bb::fr& val)
         : trace(t)
-        , operation_id(trace->record_const_fr(val))
+        , operation_id(std::nullopt)
+        , is_constant(true)
+        , constant_value(val)
     {}
 
     explicit RecordingFF(std::shared_ptr<OperationTrace> t, const std::string& var_name)
         : trace(t)
         , operation_id(trace->record_var(var_name))
+        , is_constant(false)
+        , constant_value(bb::fr::zero())
     {}
 
   private:
@@ -239,67 +222,112 @@ class RecordingFF {
     RecordingFF(std::shared_ptr<OperationTrace> t, size_t op_id, OperationIdTag)
         : trace(t)
         , operation_id(op_id)
+        , is_constant(false)
+        , constant_value(bb::fr::zero())
     {}
 
   public:
     // Arithmetic operations
     RecordingFF operator+(const RecordingFF& other) const
     {
-        size_t result_id_local = trace->record_binary_op(OpKind::ADD, operation_id, other.operation_id);
+        if (is_constant && other.is_constant) {
+            return RecordingFF(trace, constant_value + other.constant_value);
+        }
+
+        if (is_constant && !other.is_constant) {
+            return other + *this;
+        }
+        // We only initiate recording a constant when we start generating formulas. This is because we want to use the
+        // static keyword in Relations. If we start recording operations while we are creating constants, those will
+        // only be generated on the first call to the Relation. As a result, tests will fail if we rerun the same
+        // relation.
+        if (other.is_constant) {
+            size_t constant_id = other.trace->record_const_fr(other.constant_value);
+            size_t result_id_local = trace->record_binary_op(OpKind::ADD, operation_id.value(), constant_id);
+            return RecordingFF(trace, result_id_local, OperationIdTag{});
+        }
+        ASSERT(operation_id.has_value() && other.operation_id.has_value());
+        size_t result_id_local = trace->record_binary_op(OpKind::ADD, operation_id.value(), other.operation_id.value());
         return RecordingFF(trace, result_id_local, OperationIdTag{});
     }
 
     RecordingFF operator-(const RecordingFF& other) const
     {
-        size_t result_id_local = trace->record_binary_op(OpKind::SUB, operation_id, other.operation_id);
+        if (is_constant && other.is_constant) {
+            return RecordingFF(trace, constant_value - other.constant_value);
+        }
+
+        if (is_constant && !other.is_constant) {
+            return other - *this;
+        }
+
+        if (other.is_constant) {
+            size_t constant_id = other.trace->record_const_fr(other.constant_value);
+            size_t result_id_local = trace->record_binary_op(OpKind::SUB, operation_id.value(), constant_id);
+            return RecordingFF(trace, result_id_local, OperationIdTag{});
+        }
+
+        ASSERT(operation_id.has_value() && other.operation_id.has_value());
+        size_t result_id_local = trace->record_binary_op(OpKind::SUB, operation_id.value(), other.operation_id.value());
         return RecordingFF(trace, result_id_local, OperationIdTag{});
     }
 
     RecordingFF operator*(const RecordingFF& other) const
     {
-        size_t result_id_local = trace->record_binary_op(OpKind::MUL, operation_id, other.operation_id);
+        if (is_constant && other.is_constant) {
+            return RecordingFF(trace, constant_value * other.constant_value);
+        }
+
+        if (is_constant && !other.is_constant) {
+            return other * *this;
+        }
+
+        if (other.is_constant) {
+            size_t constant_id = other.trace->record_const_fr(other.constant_value);
+            size_t result_id_local = trace->record_binary_op(OpKind::MUL, operation_id.value(), constant_id);
+            return RecordingFF(trace, result_id_local, OperationIdTag{});
+        }
+
+        ASSERT(operation_id.has_value() && other.operation_id.has_value());
+        size_t result_id_local = trace->record_binary_op(OpKind::MUL, operation_id.value(), other.operation_id.value());
         return RecordingFF(trace, result_id_local, OperationIdTag{});
     }
 
     RecordingFF& operator*=(const RecordingFF& other)
     {
-        operation_id = trace->record_binary_op(OpKind::MUL, operation_id, other.operation_id);
+        *this = *this * other;
         return *this;
     }
 
     RecordingFF operator-() const
     {
-        size_t result_id_local = trace->record_unary_op(OpKind::NEG, operation_id);
+        if (is_constant) {
+            return RecordingFF(trace, -constant_value);
+        }
+
+        size_t result_id_local = trace->record_unary_op(OpKind::NEG, operation_id.value());
         return RecordingFF(trace, result_id_local, OperationIdTag{});
     }
 
     // Friend operations for scalar * RecordingFF
     friend RecordingFF operator*(const uint256_t& c, const RecordingFF& x)
     {
-        size_t const_id = x.trace->record_const_u256(c);
-        size_t result_id_local = x.trace->record_binary_op(OpKind::MUL, const_id, x.operation_id);
-        return RecordingFF(x.trace, result_id_local, OperationIdTag{});
+        auto converted = bb::fr(c);
+        return converted * x;
     }
 
-    friend RecordingFF operator*(const bb::fr& c, const RecordingFF& x)
-    {
-        size_t const_id = x.trace->record_const_fr(c);
-        size_t result_id_local = x.trace->record_binary_op(OpKind::MUL, const_id, x.operation_id);
-        return RecordingFF(x.trace, result_id_local, OperationIdTag{});
-    }
+    friend RecordingFF operator*(const bb::fr& c, const RecordingFF& x) { return RecordingFF(c) * x; }
 
     friend RecordingFF operator+(const bb::fr& c, const RecordingFF& x)
     {
-        size_t const_id = x.trace->record_const_fr(c);
-        size_t result_id_local = x.trace->record_binary_op(OpKind::ADD, const_id, x.operation_id);
-        return RecordingFF(x.trace, result_id_local, OperationIdTag{});
+        auto converted = RecordingFF(bb::fr(c));
+        return converted + x;
     }
 
     friend RecordingFF operator-(const bb::fr& c, const RecordingFF& x)
     {
-        size_t const_id = x.trace->record_const_fr(c);
-        size_t result_id_local = x.trace->record_binary_op(OpKind::SUB, const_id, x.operation_id);
-        return RecordingFF(x.trace, result_id_local, OperationIdTag{});
+        auto converted = RecordingFF(bb::fr(c));
+        return converted - x;
     }
 };
 

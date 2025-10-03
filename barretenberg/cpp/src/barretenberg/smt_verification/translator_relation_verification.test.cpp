@@ -10,6 +10,27 @@
 #include <set>
 #include <sstream>
 
+static std::string op_kind_to_string(smt_relation_recorder::OpKind kind)
+{
+    using smt_relation_recorder::OpKind;
+    switch (kind) {
+    case OpKind::VAR:
+        return "VAR";
+    case OpKind::CONST_FR:
+        return "CONST_FR";
+    case OpKind::ADD:
+        return "ADD";
+    case OpKind::SUB:
+        return "SUB";
+    case OpKind::MUL:
+        return "MUL";
+    case OpKind::NEG:
+        return "NEG";
+    default:
+        return "UNKNOWN";
+    }
+}
+
 using namespace bb;
 
 /**
@@ -411,10 +432,13 @@ void test_limb_uniqueness_and_maximum(smt_solver::Solver& s,
     std::vector<smt_terms::STerm> f1, v1, f2, v2;
     std::vector<std::string> n1, n2;
 
+    std::cerr << "[TranslatorTest] Starting limb uniqueness check for " << decomp.limb_name << "\n";
     smt_translator_relations::replay_translator_decomposition_relation(
         recording_trace_main, &s, "V1", true, f1, v1, n1);
+    std::cerr << "[TranslatorTest] Replayed V1 for " << decomp.limb_name << "\n";
     smt_translator_relations::replay_translator_decomposition_relation(
         recording_trace_main, &s, "V2", true, f2, v2, n2);
+    std::cerr << "[TranslatorTest] Replayed V2 for " << decomp.limb_name << "\n";
 
     smt_translator_relations::create_range_constraint_formulas(&s, v1, n1, "constraint", 16384);
     smt_translator_relations::create_range_constraint_formulas(&s, v2, n2, "constraint", 16384);
@@ -472,7 +496,9 @@ void test_limb_uniqueness_and_maximum(smt_solver::Solver& s,
     std::vector<smt_terms::STerm> fm, vm;
     std::vector<std::string> nm;
 
+    std::cerr << "[TranslatorTest] Starting maximum check for " << decomp.limb_name << "\n";
     smt_translator_relations::replay_translator_decomposition_relation(recording_trace_main, &s, "M", true, fm, vm, nm);
+    std::cerr << "[TranslatorTest] Replayed M for " << decomp.limb_name << "\n";
     smt_translator_relations::create_range_constraint_formulas(&s, vm, nm, "constraint", 16384);
 
     // Constrain op and lagrange_even_in_minicircuit wires to 1
@@ -574,10 +600,13 @@ void test_lo_hi_uniqueness_and_maximum(smt_solver::Solver& s,
     std::vector<smt_terms::STerm> f1, v1, f2, v2;
     std::vector<std::string> n1, n2;
 
+    std::cerr << "[TranslatorTest] Starting lo/hi uniqueness check for " << var_name << "\n";
     smt_translator_relations::replay_translator_decomposition_relation(
         recording_trace_main, &s, "V1", true, f1, v1, n1);
+    std::cerr << "[TranslatorTest] Replayed V1 for " << var_name << "\n";
     smt_translator_relations::replay_translator_decomposition_relation(
         recording_trace_main, &s, "V2", true, f2, v2, n2);
+    std::cerr << "[TranslatorTest] Replayed V2 for " << var_name << "\n";
 
     // Assert decomposition relations for the composite values only (not the limb decompositions)
     smt_translator_relations::assert_formulas_zero(
@@ -752,7 +781,9 @@ void test_lo_hi_uniqueness_and_maximum(smt_solver::Solver& s,
     std::vector<smt_terms::STerm> fm, vm;
     std::vector<std::string> nm;
 
+    std::cerr << "[TranslatorTest] Starting lo/hi maximum check for " << var_name << "\n";
     smt_translator_relations::replay_translator_decomposition_relation(recording_trace_main, &s, "M", true, fm, vm, nm);
+    std::cerr << "[TranslatorTest] Replayed M for " << var_name << "\n";
     smt_translator_relations::assert_formulas_zero(&s, { fm[lo_relation], fm[hi_relation] });
 
     // Find the variables
@@ -810,6 +841,24 @@ TEST(TranslatorRelationVerification, test_translator_decompositions)
     std::vector<uint256_t> max_values;
 
     auto recording_trace_main = smt_translator_relations::record_translator_decomposition_relation();
+
+    const auto& ops = recording_trace_main.operations;
+    auto log_op = [&](size_t idx) {
+        if (idx < ops.size()) {
+            const auto& op = ops[idx];
+            std::cerr << "[TranslatorTest] Operation #" << idx << " kind=" << op_kind_to_string(op.kind)
+                      << " lhs=" << op.lhs_id << " rhs=" << op.rhs_id << " result=" << op.result_id;
+            if (op.kind == smt_relation_recorder::OpKind::VAR) {
+                std::cerr << " value=" << std::get<std::string>(op.value);
+            }
+            std::cerr << "\n";
+        } else {
+            std::cerr << "[TranslatorTest] Operation #" << idx << " is out of range (" << ops.size() << " ops)\n";
+        }
+    };
+
+    log_op(553);
+    log_op(558);
     // Test individual limb decompositions for p_y and p_x
     {
         std::vector<smt_terms::STerm> formulas, vars;

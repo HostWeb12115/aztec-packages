@@ -228,7 +228,8 @@ OperationTrace record_translator_decomposition_relation()
 
     // Record which operation IDs correspond to each accumulator's final value
     size_t acc_idx = 0;
-    std::apply([&](auto&... a) { ((trace->set_accumulator_result(acc_idx++, a.val.operation_id)), ...); }, accs);
+    std::apply([&](auto&... a) { ((trace->set_accumulator_result(acc_idx++, a.val.operation_id.value())), ...); },
+               accs);
 
     // Clear the default trace to avoid state leaking between tests
     RecordingFF::default_trace.reset();
@@ -292,7 +293,7 @@ OperationTrace record_translator_opcode_constraint_relation()
 
     // Record which operation IDs correspond to each accumulator's final value
     size_t acc_idx = 0;
-    std::apply([&](auto&... a) { ((trace->set_accumulator_result(acc_idx++, a.val.operation_id)), ...); }, acc);
+    std::apply([&](auto&... a) { ((trace->set_accumulator_result(acc_idx++, a.val.operation_id.value())), ...); }, acc);
 
     // Clear the default trace to avoid state leaking between tests
     RecordingFF::default_trace.reset();
