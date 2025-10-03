@@ -20,6 +20,11 @@ using namespace smt_terms;
 
 namespace {
 
+static constexpr std::array<const char*, 4> ACCUMULATED_RESULT_PARAM_NAMES = { "accumulated_result_param_0",
+                                                                               "accumulated_result_param_1",
+                                                                               "accumulated_result_param_2",
+                                                                               "accumulated_result_param_3" };
+
 // Build labels equal to the exact AllEntities member names, in the same order as get_all()
 static std::vector<std::string> build_all_entity_member_names()
 {
@@ -343,6 +348,9 @@ OperationTrace record_translator_accumulator_transfer_relation()
     using RelationParams = bb::RelationParameters<RecordingFF>;
 
     RelationParams params;
+    for (size_t i = 0; i < ACCUMULATED_RESULT_PARAM_NAMES.size(); ++i) {
+        params.accumulated_result[i] = RecordingFF(trace, ACCUMULATED_RESULT_PARAM_NAMES[i]);
+    }
     RecordingFF scaling_factor(trace, static_cast<uint64_t>(1));
 
     AccRelation::template accumulate<decltype(acc), AllEntities, RelationParams>(
@@ -418,7 +426,46 @@ void replay_translator_accumulator_transfer_relation(const OperationTrace& trace
                                                      std::vector<STerm>& out_vars,
                                                      std::vector<std::string>& out_names)
 {
-    replay_translator_decomposition_relation(trace, solver, prefix, use_ffi, out_formulas, out_vars, out_names);
+    using namespace smt_terms;
+
+    auto original_names = build_all_entity_member_names();
+    std::unordered_map<std::string, std::string> name_map;
+
+    for (const auto& name : original_names) {
+        if (prefix.empty()) {
+            name_map[name] = name;
+        } else {
+            name_map[name] = prefix + "_" + name;
+        }
+    }
+
+    // Map parameter names
+    for (const auto* param_name : ACCUMULATED_RESULT_PARAM_NAMES) {
+        if (prefix.empty()) {
+            name_map[param_name] = param_name;
+        } else {
+            name_map[param_name] = prefix + "_" + param_name;
+        }
+    }
+
+    std::unordered_map<std::string, STerm> initial_variables;
+    out_vars.clear();
+    out_names.clear();
+
+    for (const auto& name : original_names) {
+        initial_variables[name] = use_ffi ? FFIVar(name_map[name], solver) : FFVar(name_map[name], solver);
+        out_vars.push_back(initial_variables[name]);
+        out_names.push_back(name_map[name]);
+    }
+
+    for (const auto* param_name : ACCUMULATED_RESULT_PARAM_NAMES) {
+        initial_variables[param_name] =
+            use_ffi ? FFIVar(name_map[param_name], solver) : FFVar(name_map[param_name], solver);
+        out_vars.push_back(initial_variables[param_name]);
+        out_names.push_back(name_map[param_name]);
+    }
+
+    out_formulas = OperationReplayer::replay(trace, solver, initial_variables, use_ffi);
 }
 
 void instantiate_translator_decomposition_relation_recorded(smt_solver::Solver* solver,
