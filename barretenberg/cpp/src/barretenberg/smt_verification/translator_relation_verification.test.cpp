@@ -10,27 +10,6 @@
 #include <set>
 #include <sstream>
 
-static std::string op_kind_to_string(smt_relation_recorder::OpKind kind)
-{
-    using smt_relation_recorder::OpKind;
-    switch (kind) {
-    case OpKind::VAR:
-        return "VAR";
-    case OpKind::CONST_FR:
-        return "CONST_FR";
-    case OpKind::ADD:
-        return "ADD";
-    case OpKind::SUB:
-        return "SUB";
-    case OpKind::MUL:
-        return "MUL";
-    case OpKind::NEG:
-        return "NEG";
-    default:
-        return "UNKNOWN";
-    }
-}
-
 using namespace bb;
 
 /**
@@ -432,13 +411,10 @@ void test_limb_uniqueness_and_maximum(smt_solver::Solver& s,
     std::vector<smt_terms::STerm> f1, v1, f2, v2;
     std::vector<std::string> n1, n2;
 
-    std::cerr << "[TranslatorTest] Starting limb uniqueness check for " << decomp.limb_name << "\n";
     smt_translator_relations::replay_translator_decomposition_relation(
         recording_trace_main, &s, "V1", true, f1, v1, n1);
-    std::cerr << "[TranslatorTest] Replayed V1 for " << decomp.limb_name << "\n";
     smt_translator_relations::replay_translator_decomposition_relation(
         recording_trace_main, &s, "V2", true, f2, v2, n2);
-    std::cerr << "[TranslatorTest] Replayed V2 for " << decomp.limb_name << "\n";
 
     smt_translator_relations::create_range_constraint_formulas(&s, v1, n1, "constraint", 16384);
     smt_translator_relations::create_range_constraint_formulas(&s, v2, n2, "constraint", 16384);
@@ -496,9 +472,7 @@ void test_limb_uniqueness_and_maximum(smt_solver::Solver& s,
     std::vector<smt_terms::STerm> fm, vm;
     std::vector<std::string> nm;
 
-    std::cerr << "[TranslatorTest] Starting maximum check for " << decomp.limb_name << "\n";
     smt_translator_relations::replay_translator_decomposition_relation(recording_trace_main, &s, "M", true, fm, vm, nm);
-    std::cerr << "[TranslatorTest] Replayed M for " << decomp.limb_name << "\n";
     smt_translator_relations::create_range_constraint_formulas(&s, vm, nm, "constraint", 16384);
 
     // Constrain op and lagrange_even_in_minicircuit wires to 1
@@ -600,13 +574,10 @@ void test_lo_hi_uniqueness_and_maximum(smt_solver::Solver& s,
     std::vector<smt_terms::STerm> f1, v1, f2, v2;
     std::vector<std::string> n1, n2;
 
-    std::cerr << "[TranslatorTest] Starting lo/hi uniqueness check for " << var_name << "\n";
     smt_translator_relations::replay_translator_decomposition_relation(
         recording_trace_main, &s, "V1", true, f1, v1, n1);
-    std::cerr << "[TranslatorTest] Replayed V1 for " << var_name << "\n";
     smt_translator_relations::replay_translator_decomposition_relation(
         recording_trace_main, &s, "V2", true, f2, v2, n2);
-    std::cerr << "[TranslatorTest] Replayed V2 for " << var_name << "\n";
 
     // Assert decomposition relations for the composite values only (not the limb decompositions)
     smt_translator_relations::assert_formulas_zero(
@@ -781,9 +752,7 @@ void test_lo_hi_uniqueness_and_maximum(smt_solver::Solver& s,
     std::vector<smt_terms::STerm> fm, vm;
     std::vector<std::string> nm;
 
-    std::cerr << "[TranslatorTest] Starting lo/hi maximum check for " << var_name << "\n";
     smt_translator_relations::replay_translator_decomposition_relation(recording_trace_main, &s, "M", true, fm, vm, nm);
-    std::cerr << "[TranslatorTest] Replayed M for " << var_name << "\n";
     smt_translator_relations::assert_formulas_zero(&s, { fm[lo_relation], fm[hi_relation] });
 
     // Find the variables
@@ -843,22 +812,6 @@ TEST(TranslatorRelationVerification, test_translator_decompositions)
     auto recording_trace_main = smt_translator_relations::record_translator_decomposition_relation();
 
     const auto& ops = recording_trace_main.operations;
-    auto log_op = [&](size_t idx) {
-        if (idx < ops.size()) {
-            const auto& op = ops[idx];
-            std::cerr << "[TranslatorTest] Operation #" << idx << " kind=" << op_kind_to_string(op.kind)
-                      << " lhs=" << op.lhs_id << " rhs=" << op.rhs_id << " result=" << op.result_id;
-            if (op.kind == smt_relation_recorder::OpKind::VAR) {
-                std::cerr << " value=" << std::get<std::string>(op.value);
-            }
-            std::cerr << "\n";
-        } else {
-            std::cerr << "[TranslatorTest] Operation #" << idx << " is out of range (" << ops.size() << " ops)\n";
-        }
-    };
-
-    log_op(553);
-    log_op(558);
     // Test individual limb decompositions for p_y and p_x
     {
         std::vector<smt_terms::STerm> formulas, vars;
@@ -876,6 +829,7 @@ TEST(TranslatorRelationVerification, test_translator_decompositions)
                                                          decomp_map[16], decomp_map[17], decomp_map[18], decomp_map[19],
                                                          decomp_map[20], decomp_map[21] };
 
+        (void)ops;
         for (const auto& decomp : limbs_to_test) {
             std::string unique_result, max_value;
             test_limb_uniqueness_and_maximum(s, recording_trace_main, decomp, unique_result, max_value);
@@ -907,7 +861,6 @@ TEST(TranslatorRelationVerification, test_translator_decompositions)
             }
         }
     }
-    std::cerr << "GOT TO HERE 1\n";
     // Test x_lo, x_hi, y_lo, y_hi, z1, z2 decompositions
     for (const auto& var_name : { "x_lo", "x_hi", "y_lo", "y_hi", "z1", "z2" }) {
         std::string unique_result, max_value;
@@ -1075,4 +1028,94 @@ TEST(TranslatorRelationVerification, test_opcode_constraint_relation)
     formulas.clear();
     vars.clear();
     names.clear();
+}
+
+TEST(TranslatorRelationVerification, test_accumulator_transfer_relation)
+{
+    smt_solver::Solver s("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001",
+                         smt_solver::default_solver_config);
+
+    auto transfer_trace = smt_translator_relations::record_translator_accumulator_transfer_relation();
+
+    std::vector<smt_terms::STerm> transfer_formulas;
+    std::vector<smt_terms::STerm> transfer_vars;
+    std::vector<std::string> transfer_names;
+
+    smt_translator_relations::replay_translator_accumulator_transfer_relation(
+        transfer_trace, &s, "acc_transfer", true, transfer_formulas, transfer_vars, transfer_names);
+
+    smt_translator_relations::create_range_constraint_formulas(
+        &s, transfer_vars, transfer_names, "acc_transfer", 16384);
+    smt_translator_relations::assert_formulas_zero(&s, transfer_formulas);
+
+    auto get_var = [&](const std::string& name) -> smt_terms::STerm {
+        for (size_t i = 0; i < transfer_names.size(); ++i) {
+            if (transfer_names[i] == name) {
+                return transfer_vars[i];
+            }
+        }
+        ADD_FAILURE() << "Variable not found: " << name;
+        return transfer_vars.front();
+    };
+
+    smt_terms::STerm lagrange_last = get_var("acc_transfer_lagrange_last_in_minicircuit");
+    smt_terms::STerm lagrange_odd = get_var("acc_transfer_lagrange_odd_in_minicircuit");
+
+    smt_terms::STerm acc0 = get_var("acc_transfer_accumulators_binary_limbs_0");
+    smt_terms::STerm acc1 = get_var("acc_transfer_accumulators_binary_limbs_1");
+    smt_terms::STerm acc2 = get_var("acc_transfer_accumulators_binary_limbs_2");
+    smt_terms::STerm acc3 = get_var("acc_transfer_accumulators_binary_limbs_3");
+
+    smt_terms::STerm acc0_shift = get_var("acc_transfer_accumulators_binary_limbs_0_shift");
+    smt_terms::STerm acc1_shift = get_var("acc_transfer_accumulators_binary_limbs_1_shift");
+    smt_terms::STerm acc2_shift = get_var("acc_transfer_accumulators_binary_limbs_2_shift");
+    smt_terms::STerm acc3_shift = get_var("acc_transfer_accumulators_binary_limbs_3_shift");
+
+    smt_terms::STerm lagrange_mini_masking = get_var("acc_transfer_lagrange_mini_masking");
+
+    smt_terms::STerm zero = smt_terms::FFIConst("0", &s, 10);
+    smt_terms::STerm one = smt_terms::FFIConst("1", &s, 10);
+
+    auto assert_pair_must_match = [&](const smt_terms::STerm& a, const smt_terms::STerm& b) {
+        s.push();
+        s.assertFormula(s.term_manager.mkTerm(
+            cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(lagrange_last), static_cast<cvc5::Term>(zero) }));
+        s.assertFormula(s.term_manager.mkTerm(cvc5::Kind::EQUAL,
+                                              { static_cast<cvc5::Term>(lagrange_odd), static_cast<cvc5::Term>(one) }));
+
+        smt_terms::STerm diff = a - b;
+        s.assertFormula(s.term_manager.mkTerm(
+            cvc5::Kind::NOT,
+            { s.term_manager.mkTerm(cvc5::Kind::EQUAL,
+                                    { static_cast<cvc5::Term>(diff), static_cast<cvc5::Term>(zero) }) }));
+        ASSERT_FALSE(s.check());
+        s.pop();
+    };
+
+    // Ensuring that the accumulator limbs are equal to their shifted counterparts, when lagrange_odd_in_minicircuit is
+    // 1 and lagrange_last_in_minicircuit is 0.
+    assert_pair_must_match(acc0, acc0_shift);
+    assert_pair_must_match(acc1, acc1_shift);
+    assert_pair_must_match(acc2, acc2_shift);
+    assert_pair_must_match(acc3, acc3_shift);
+
+    auto assert_limb_zero_when_last = [&](const smt_terms::STerm& limb) {
+        s.push();
+        s.assertFormula(s.term_manager.mkTerm(
+            cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(lagrange_last), static_cast<cvc5::Term>(one) }));
+        s.assertFormula(s.term_manager.mkTerm(
+            cvc5::Kind::EQUAL, { static_cast<cvc5::Term>(lagrange_mini_masking), static_cast<cvc5::Term>(zero) }));
+        s.assertFormula(s.term_manager.mkTerm(
+            cvc5::Kind::NOT,
+            { s.term_manager.mkTerm(cvc5::Kind::EQUAL,
+                                    { static_cast<cvc5::Term>(limb), static_cast<cvc5::Term>(zero) }) }));
+        ASSERT_FALSE(s.check());
+        s.pop();
+    };
+
+    // Ensuring that when lagrange_last_in_minicircuit is 1 and the row is unmasked, the accumulator limbs must be 0.
+    assert_limb_zero_when_last(acc0);
+    assert_limb_zero_when_last(acc1);
+    assert_limb_zero_when_last(acc2);
+    assert_limb_zero_when_last(acc3);
 }

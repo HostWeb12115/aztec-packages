@@ -301,6 +301,61 @@ OperationTrace record_translator_opcode_constraint_relation()
     return *trace;
 }
 
+OperationTrace record_translator_accumulator_transfer_relation()
+{
+    auto trace = std::make_shared<OperationTrace>();
+
+    RecordingFF::default_trace = trace;
+
+    using Flavor = bb::TranslatorFlavor;
+    using AllEntities = typename Flavor::AllEntities<RecordingFF>;
+
+    AllEntities symbolic_all_entities;
+    std::vector<std::reference_wrapper<RecordingFF>> refs;
+    std::vector<std::string> names;
+
+    for (auto [name, entity] : zip_view(symbolic_all_entities.get_labels(), symbolic_all_entities.get_all())) {
+        names.push_back(name);
+        refs.push_back(std::ref(entity));
+    }
+
+    for (size_t i = 0; i < refs.size(); ++i) {
+        refs[i].get() = RecordingFF(trace, names[i]);
+    }
+
+    std::tuple<RecordingAccumulator<4>,
+               RecordingAccumulator<4>,
+               RecordingAccumulator<4>,
+               RecordingAccumulator<4>,
+               RecordingAccumulator<4>,
+               RecordingAccumulator<4>,
+               RecordingAccumulator<4>,
+               RecordingAccumulator<4>,
+               RecordingAccumulator<4>,
+               RecordingAccumulator<4>,
+               RecordingAccumulator<4>,
+               RecordingAccumulator<4>>
+        acc;
+
+    std::apply([&](auto&... a) { ((a.val = RecordingFF(trace, static_cast<uint64_t>(0))), ...); }, acc);
+
+    using AccRelation = bb::TranslatorAccumulatorTransferRelationImpl<RecordingFF>;
+    using RelationParams = bb::RelationParameters<RecordingFF>;
+
+    RelationParams params;
+    RecordingFF scaling_factor(trace, static_cast<uint64_t>(1));
+
+    AccRelation::template accumulate<decltype(acc), AllEntities, RelationParams>(
+        acc, symbolic_all_entities, params, scaling_factor);
+
+    size_t acc_idx = 0;
+    std::apply([&](auto&... a) { ((trace->set_accumulator_result(acc_idx++, a.val.operation_id.value())), ...); }, acc);
+
+    RecordingFF::default_trace.reset();
+
+    return *trace;
+}
+
 void replay_translator_decomposition_relation(const OperationTrace& trace,
                                               smt_solver::Solver* solver,
                                               const std::string& prefix,
@@ -353,6 +408,17 @@ void replay_translator_opcode_constraint_relation(const OperationTrace& trace,
 {
     // For now, use the same implementation with use_ffi = false
     replay_translator_decomposition_relation(trace, solver, prefix, false, out_formulas, out_vars, out_names);
+}
+
+void replay_translator_accumulator_transfer_relation(const OperationTrace& trace,
+                                                     smt_solver::Solver* solver,
+                                                     const std::string& prefix,
+                                                     bool use_ffi,
+                                                     std::vector<STerm>& out_formulas,
+                                                     std::vector<STerm>& out_vars,
+                                                     std::vector<std::string>& out_names)
+{
+    replay_translator_decomposition_relation(trace, solver, prefix, use_ffi, out_formulas, out_vars, out_names);
 }
 
 void instantiate_translator_decomposition_relation_recorded(smt_solver::Solver* solver,

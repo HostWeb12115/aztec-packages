@@ -242,7 +242,8 @@ class RecordingFF {
         // only be generated on the first call to the Relation. As a result, tests will fail if we rerun the same
         // relation.
         if (other.is_constant) {
-            size_t constant_id = other.trace->record_const_fr(other.constant_value);
+            ASSERT(trace && "Non-constant RecordingFF must have an associated trace");
+            size_t constant_id = trace->record_const_fr(other.constant_value);
             size_t result_id_local = trace->record_binary_op(OpKind::ADD, operation_id.value(), constant_id);
             return RecordingFF(trace, result_id_local, OperationIdTag{});
         }
@@ -262,7 +263,8 @@ class RecordingFF {
         }
 
         if (other.is_constant) {
-            size_t constant_id = other.trace->record_const_fr(other.constant_value);
+            ASSERT(trace && "Non-constant RecordingFF must have an associated trace");
+            size_t constant_id = trace->record_const_fr(other.constant_value);
             size_t result_id_local = trace->record_binary_op(OpKind::SUB, operation_id.value(), constant_id);
             return RecordingFF(trace, result_id_local, OperationIdTag{});
         }
@@ -283,7 +285,8 @@ class RecordingFF {
         }
 
         if (other.is_constant) {
-            size_t constant_id = other.trace->record_const_fr(other.constant_value);
+            ASSERT(trace && "Non-constant RecordingFF must have an associated trace");
+            size_t constant_id = trace->record_const_fr(other.constant_value);
             size_t result_id_local = trace->record_binary_op(OpKind::MUL, operation_id.value(), constant_id);
             return RecordingFF(trace, result_id_local, OperationIdTag{});
         }

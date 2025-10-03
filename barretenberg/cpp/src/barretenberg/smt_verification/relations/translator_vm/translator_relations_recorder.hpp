@@ -24,6 +24,11 @@ smt_relation_recorder::OperationTrace record_translator_decomposition_relation()
 smt_relation_recorder::OperationTrace record_translator_opcode_constraint_relation();
 
 /**
+ * @brief Records the operations performed by the translator accumulator transfer relation
+ */
+smt_relation_recorder::OperationTrace record_translator_accumulator_transfer_relation();
+
+/**
  * @brief Replay a recorded translator decomposition relation on a specific solver
  * @param trace The recorded operation trace
  * @param solver The SMT solver to use
@@ -63,6 +68,14 @@ void replay_translator_opcode_constraint_relation(const smt_relation_recorder::O
                                                   std::vector<smt_terms::STerm>& out_formulas,
                                                   std::vector<smt_terms::STerm>& out_vars,
                                                   std::vector<std::string>& out_names);
+
+void replay_translator_accumulator_transfer_relation(const smt_relation_recorder::OperationTrace& trace,
+                                                     smt_solver::Solver* solver,
+                                                     const std::string& prefix,
+                                                     bool use_ffi,
+                                                     std::vector<smt_terms::STerm>& out_formulas,
+                                                     std::vector<smt_terms::STerm>& out_vars,
+                                                     std::vector<std::string>& out_names);
 
 /**
  * @brief High-level API: Record and immediately replay translator decomposition relation
