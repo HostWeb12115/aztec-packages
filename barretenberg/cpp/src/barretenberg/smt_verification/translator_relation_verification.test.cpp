@@ -65,6 +65,32 @@ struct LimbDecomposition {
     size_t tail_relation_index;        // The relation index for tail constraint
 };
 
+// Documented maximum bit lengths per limb used for regression checks.
+static const std::unordered_map<std::string, size_t> kExpectedLimbBitLengths = {
+    { "accumulators_binary_limbs_0", 68 },
+    { "accumulators_binary_limbs_1", 68 },
+    { "accumulators_binary_limbs_2", 68 },
+    { "accumulators_binary_limbs_3", 50 },
+    { "relation_wide_limbs", 80 },
+    { "relation_wide_limbs_shift", 80 },
+    { "z_low_limbs", 68 },
+    { "z_low_limbs_shift", 68 },
+    { "z_high_limbs", 60 },
+    { "z_high_limbs_shift", 60 },
+    { "p_y_low_limbs", 68 },
+    { "p_y_low_limbs_shift", 68 },
+    { "p_y_high_limbs", 68 },
+    { "p_y_high_limbs_shift", 50 },
+    { "p_x_low_limbs", 68 },
+    { "p_x_low_limbs_shift", 68 },
+    { "p_x_high_limbs", 68 },
+    { "p_x_high_limbs_shift", 50 },
+    { "quotient_low_binary_limbs", 68 },
+    { "quotient_low_binary_limbs_shift", 68 },
+    { "quotient_high_binary_limbs", 68 },
+    { "quotient_high_binary_limbs_shift", 52 }
+};
+
 /**
  * @brief Get decomposition mapping for all translator VM limbs
  */
@@ -843,6 +869,10 @@ TEST(TranslatorRelationVerification, test_translator_decompositions)
                 std::ostringstream oss;
                 oss << max_val; // uint256_t outputs in hex with 0x prefix
                 max_hex_str = oss.str();
+                auto expected_it = kExpectedLimbBitLengths.find(decomp.limb_name);
+                ASSERT_TRUE(expected_it != kExpectedLimbBitLengths.end())
+                    << "Missing expected bit length entry for limb " << decomp.limb_name;
+                ASSERT_EQ(bits, expected_it->second) << "Unexpected bit length for limb " << decomp.limb_name;
                 max_values.push_back(max_val);
             } else {
                 // If max is UNSAT, push 0 as placeholder
