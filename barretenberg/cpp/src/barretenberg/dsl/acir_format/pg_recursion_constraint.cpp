@@ -37,57 +37,58 @@ using namespace bb;
  * @param trace_settings
  * @return ClientIVC
  */
-std::shared_ptr<ClientIVC> create_mock_ivc_from_constraints(const std::vector<RecursionConstraint>& constraints,
-                                                            const TraceSettings& trace_settings)
+std::shared_ptr<ClientIVC> create_mock_ivc_from_constraints(
+    [[maybe_unused]] const std::vector<RecursionConstraint>& constraints,
+    [[maybe_unused]] const TraceSettings& trace_settings)
 {
-    auto ivc = std::make_shared<ClientIVC>(constraints.size(), trace_settings);
+    // auto ivc = std::make_shared<ClientIVC>(constraints.size(), trace_settings);
 
-    uint32_t oink_type = static_cast<uint32_t>(PROOF_TYPE::OINK);
-    uint32_t pg_type = static_cast<uint32_t>(PROOF_TYPE::PG);
-    uint32_t pg_final_type = static_cast<uint32_t>(PROOF_TYPE::PG_FINAL);
-    uint32_t pg_tail_type = static_cast<uint32_t>(PROOF_TYPE::PG_TAIL);
+    // uint32_t oink_type = static_cast<uint32_t>(PROOF_TYPE::OINK);
+    // uint32_t pg_type = static_cast<uint32_t>(PROOF_TYPE::PG);
+    // uint32_t pg_final_type = static_cast<uint32_t>(PROOF_TYPE::PG_FINAL);
+    // uint32_t pg_tail_type = static_cast<uint32_t>(PROOF_TYPE::PG_TAIL);
 
-    // There is a fixed set of valid combinations of IVC recursion constraints for Aztec kernel circuits:
+    // // There is a fixed set of valid combinations of IVC recursion constraints for Aztec kernel circuits:
 
-    // Case: INIT kernel; single Oink recursive verification of an app
-    if (constraints.size() == 1 && constraints[0].proof_type == oink_type) {
-        mock_ivc_accumulation(ivc, ClientIVC::QUEUE_TYPE::OINK, /*is_kernel=*/false);
-        return ivc;
-    }
+    // // Case: INIT kernel; single Oink recursive verification of an app
+    // if (constraints.size() == 1 && constraints[0].proof_type == oink_type) {
+    //     mock_ivc_accumulation(ivc, ClientIVC::QUEUE_TYPE::OINK, /*is_kernel=*/false);
+    //     return ivc;
+    // }
 
-    // Case: RESET kernel; single PG recursive verification of a kernel
-    if (constraints.size() == 1 && constraints[0].proof_type == pg_type) {
-        ivc->recursive_verifier_native_accum = create_mock_verifier_instance<ClientIVC::Flavor>();
-        mock_ivc_accumulation(ivc, ClientIVC::QUEUE_TYPE::PG, /*is_kernel=*/true);
-        return ivc;
-    }
+    // // Case: RESET kernel; single PG recursive verification of a kernel
+    // if (constraints.size() == 1 && constraints[0].proof_type == pg_type) {
+    //     ivc->recursive_verifier_native_accum = create_mock_verifier_instance<ClientIVC::Flavor>();
+    //     mock_ivc_accumulation(ivc, ClientIVC::QUEUE_TYPE::PG, /*is_kernel=*/true);
+    //     return ivc;
+    // }
 
-    // Case: TAIL kernel; single PG recursive verification of a kernel
-    if (constraints.size() == 1 && constraints[0].proof_type == pg_tail_type) {
-        ivc->recursive_verifier_native_accum = create_mock_verifier_instance<ClientIVC::Flavor>();
-        mock_ivc_accumulation(ivc, ClientIVC::QUEUE_TYPE::PG_TAIL, /*is_kernel=*/true);
-        return ivc;
-    }
+    // // Case: TAIL kernel; single PG recursive verification of a kernel
+    // if (constraints.size() == 1 && constraints[0].proof_type == pg_tail_type) {
+    //     ivc->recursive_verifier_native_accum = create_mock_verifier_instance<ClientIVC::Flavor>();
+    //     mock_ivc_accumulation(ivc, ClientIVC::QUEUE_TYPE::PG_TAIL, /*is_kernel=*/true);
+    //     return ivc;
+    // }
 
-    // Case: INNER kernel; two PG recursive verifications, kernel and app in that order
-    if (constraints.size() == 2) {
-        BB_ASSERT_EQ(constraints[0].proof_type, pg_type);
-        BB_ASSERT_EQ(constraints[1].proof_type, pg_type);
-        ivc->recursive_verifier_native_accum = create_mock_verifier_instance<ClientIVC::Flavor>();
-        mock_ivc_accumulation(ivc, ClientIVC::QUEUE_TYPE::PG, /*is_kernel=*/true);
-        mock_ivc_accumulation(ivc, ClientIVC::QUEUE_TYPE::PG, /*is_kernel=*/false);
-        return ivc;
-    }
+    // // Case: INNER kernel; two PG recursive verifications, kernel and app in that order
+    // if (constraints.size() == 2) {
+    //     BB_ASSERT_EQ(constraints[0].proof_type, pg_type);
+    //     BB_ASSERT_EQ(constraints[1].proof_type, pg_type);
+    //     ivc->recursive_verifier_native_accum = create_mock_verifier_instance<ClientIVC::Flavor>();
+    //     mock_ivc_accumulation(ivc, ClientIVC::QUEUE_TYPE::PG, /*is_kernel=*/true);
+    //     mock_ivc_accumulation(ivc, ClientIVC::QUEUE_TYPE::PG, /*is_kernel=*/false);
+    //     return ivc;
+    // }
 
-    // Case: HIDING kernel; single PG_FINAL recursive verification of a kernel
-    if (constraints.size() == 1 && constraints[0].proof_type == pg_final_type) {
-        ivc->recursive_verifier_native_accum = create_mock_verifier_instance<ClientIVC::Flavor>();
-        mock_ivc_accumulation(ivc, ClientIVC::QUEUE_TYPE::PG_FINAL, /*is_kernel=*/true);
-        return ivc;
-    }
+    // // Case: HIDING kernel; single PG_FINAL recursive verification of a kernel
+    // if (constraints.size() == 1 && constraints[0].proof_type == pg_final_type) {
+    //     ivc->recursive_verifier_native_accum = create_mock_verifier_instance<ClientIVC::Flavor>();
+    //     mock_ivc_accumulation(ivc, ClientIVC::QUEUE_TYPE::PG_FINAL, /*is_kernel=*/true);
+    //     return ivc;
+    // }
 
     throw_or_abort("Invalid set of IVC recursion constraints!");
-    return ivc;
+    // return ivc;
 }
 
 /**
@@ -154,17 +155,19 @@ ClientIVC::VerifierInputs create_mock_verification_queue_entry(const ClientIVC::
  * @param ivc
  * @param num_public_inputs_app num pub inputs in accumulated app, excluding fixed components, e.g. pairing points
  */
-void mock_ivc_accumulation(const std::shared_ptr<ClientIVC>& ivc, ClientIVC::QUEUE_TYPE type, const bool is_kernel)
+void mock_ivc_accumulation([[maybe_unused]] const std::shared_ptr<ClientIVC>& ivc,
+                           [[maybe_unused]] ClientIVC::QUEUE_TYPE type,
+                           [[maybe_unused]] const bool is_kernel)
 {
-    ClientIVC::VerifierInputs entry =
-        acir_format::create_mock_verification_queue_entry(type, ivc->trace_settings, is_kernel);
-    ivc->verification_queue.emplace_back(entry);
-    ivc->goblin.merge_verification_queue.emplace_back(acir_format::create_mock_merge_proof());
-    // If the type is PG_FINAL, we also need to populate the ivc instance with a mock decider proof
-    if (type == ClientIVC::QUEUE_TYPE::PG_FINAL) {
-        ivc->decider_proof = acir_format::create_mock_decider_proof<ClientIVC::Flavor>();
-    }
-    ivc->num_circuits_accumulated++;
+    // ClientIVC::VerifierInputs entry =
+    //     acir_format::create_mock_verification_queue_entry(type, ivc->trace_settings, is_kernel);
+    // ivc->verification_queue.emplace_back(entry);
+    // ivc->goblin.merge_verification_queue.emplace_back(acir_format::create_mock_merge_proof());
+    // // If the type is PG_FINAL, we also need to populate the ivc instance with a mock decider proof
+    // if (type == ClientIVC::QUEUE_TYPE::PG_FINAL) {
+    //     ivc->decider_proof = acir_format::create_mock_decider_proof<ClientIVC::Flavor>();
+    // }
+    // ivc->num_circuits_accumulated++;
 }
 
 /**
