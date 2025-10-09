@@ -414,6 +414,15 @@ export class PXEOracleInterface implements ExecutionDataProvider {
 
       // Get receipts for all pending tx hashes
       const receipts = await Promise.all(pendingTxHashes.map(txHash => this.aztecNode.getTxReceipt(txHash)));
+
+      // Now we want to separate the receipts into 3 groups:
+      // 1. Tx still pending --> we don't do anything for these txs,
+      // 2. tx dropped or any part of the tx reverted --> we drop the corresponding tagging indexes from the tagging
+      //    data provider,
+      // 3. Tx included in a block --> we check if the corresponding block is finalized, if not we continue
+      //    treating the indexes as pending. If finalized, we mark the indexes used in that tx as finalized.
+      //
+      // TODO(#17615): Handle non-revertible and revertible phases.
     }
   }
 
