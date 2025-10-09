@@ -745,7 +745,10 @@ export class PXE {
 
         const preTagsUsedInTheTx = privateExecutionResult.entrypoint.preTags;
         if (preTagsUsedInTheTx.length > 0) {
-          await this.taggingDataProvider.setLastUsedIndexesAsSender(preTagsUsedInTheTx);
+          // TODO(benesjan): The following is an expensive operation. Figure out a way to avoid it.
+          const txHash = (await txProvingResult.toTx()).txHash;
+
+          await this.taggingDataProvider.setLastPendingIndexesAsSender(preTagsUsedInTheTx, txHash);
           this.log.debug(`Stored used pre tags as sender for the tx`, {
             preTagsUsedInTheTx,
           });

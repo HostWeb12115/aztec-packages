@@ -401,6 +401,22 @@ export class PXEOracleInterface implements ExecutionDataProvider {
     }
   }
 
+  async #updateStatusOFPendingTaggingIndexes(secret: DirectionalAppTaggingSecret) {
+    const pendingTxHashes = await this.taggingDataProvider.getPendingTxHashes(secret);
+    if (pendingTxHashes.length > 0) {
+      // We have pending tx hashes so we need to check if the status of the corresponding tagging indexes need to be
+      // updated. For tagging purposes we only care whether the private logs that contain the tag that contains
+      // the index in its preimage should still be looked for. For this reason we don't care about logs of dropped
+      // or reverted txs. We also care whether a given transaction could potentially be dropped after a reorg as that
+      // affects how far into the future we are willing to slide our window of indexes. This is because if we slid it
+      // too far and then a reorg happened, we might accidentally miss some logs. For this reason we are willing to go
+      // only WINDOW_LENGTH far into the future from the last finalized index (finalized means it cannot get reorged).
+
+      // Get receipts for all pending tx hashes
+      const receipts = await Promise.all(pendingTxHashes.map(txHash => this.aztecNode.getTxReceipt(txHash)));
+    }
+  }
+
   /**
    * Synchronizes the private logs tagged with scoped addresses and all the senders in the address book. Stores the found
    * logs in CapsuleArray ready for a later retrieval in Aztec.nr.
