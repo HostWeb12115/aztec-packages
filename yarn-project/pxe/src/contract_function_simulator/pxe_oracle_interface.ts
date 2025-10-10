@@ -394,13 +394,16 @@ export class PXEOracleInterface implements ExecutionDataProvider {
       // We check if the finalized index has been updated.
       newFinalizedIndex = await this.taggingDataProvider.getHighestFinalizedIndex(secret);
       if (previousFinalizedIndex !== newFinalizedIndex) {
-        // We found a new finalized index so we will run the loop again. Let's say the previous finalized index is 10
-        // and new finalized index is 13 and the window length is 10. Then in the last iteration we have looked for
-        // indexes 11 to 20 (inclusive) now we want to cover the new window length but we don't want to look for
-        // the same logs again so we will look for indexes 21 to 23 (inclusive):
+        // A new finalized index was found, so we'll run the loop again. For example:
+        // - Previous finalized index: 10
+        // - New finalized index: 13
+        // - Window length: 10
         //
-        //    previous iteration:   [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-        //    new iteration:                                               [21, 22, 23]
+        // In the last iteration, we processed indexes 11-20. To avoid reprocessing the same logs,
+        // we'll only look at the new indexes 21-23:
+        //
+        //    Previous window: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        //    New window:                                             [21, 22, 23]
 
         const previousEnd = end;
         end = newFinalizedIndex! + 1 + WINDOW_HALF_SIZE;
