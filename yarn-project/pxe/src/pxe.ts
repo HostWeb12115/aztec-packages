@@ -743,6 +743,10 @@ export class PXE {
           nodeRPCCalls: contractFunctionSimulator?.getStats().nodeRPCCalls,
         });
 
+        // While not strictly necessary to store tagging cache contents in the DB (since we sync tagging indexes from
+        // chain before sending new logs), the sync can only see logs already included in blocks. If we send another
+        // transaction before this one is included in a block, and that transaction contains a log with a tag derived
+        // from the same secret, we would reuse the tag and the transactions would be linked.
         const preTagsUsedInTheTx = privateExecutionResult.entrypoint.preTags;
         if (preTagsUsedInTheTx.length > 0) {
           // TODO(benesjan): The following is an expensive operation. Figure out a way to avoid it.
