@@ -1,5 +1,4 @@
 import type { L1_TO_L2_MSG_TREE_HEIGHT } from '@aztec/constants';
-import { timesParallel } from '@aztec/foundation/collection';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createLogger } from '@aztec/foundation/log';
 import type { KeyStore } from '@aztec/key-store';
@@ -18,6 +17,7 @@ import type { KeyValidationRequest } from '@aztec/stdlib/kernel';
 import { computeAddressSecret } from '@aztec/stdlib/keys';
 import {
   PendingTaggedLog,
+  type PreTag,
   PrivateLogWithTxData,
   PublicLog,
   PublicLogWithTxData,
@@ -340,82 +340,54 @@ export class PXEOracleInterface implements ExecutionDataProvider {
     secret: DirectionalAppTaggingSecret,
     contractAddress: AztecAddress,
   ): Promise<void> {
-    // First we need to sync the status of the pending tagging indexes as knowing the highest finalized and highest
-    // pending indexes is necessary to figure out which next index to use when sending a log.
+    // First we sync the status of the pending tagging indexes that are already stored in the local db.
     await this.#syncStatusOfPendingTaggingIndexes(secret);
 
-    const lastUsedIndex = await this.taggingDataProvider.getLastUsedIndexesAsSender(secret);
-    // If lastUsedIndex is undefined, we've never used this secret, so start from 0
-    // Otherwise, start from one past the last used index
-    const startIndex = lastUsedIndex === undefined ? 0 : lastUsedIndex + 1;
+    // Then we get the highest pending and finalized indexes for the secret.
+    const { pending, finalized } = await this.taggingDataProvider.getIndexTipsAsSender(secret);
 
-    // This algorithm works such that:
-    // 1. If we find minimum consecutive empty logs in a window of logs we set the index to the index of the last log
-    // we found and quit.
-    // 2. If we don't find minimum consecutive empty logs in a window of logs we slide the window to latest log index
-    // and repeat the process.
-    const MIN_CONSECUTIVE_EMPTY_LOGS = 10;
-    const WINDOW_SIZE = MIN_CONSECUTIVE_EMPTY_LOGS * 2;
+    // We will only look for logs that are up to WINDOW_SIZE away from the highest finalized index. It's possible that
+    // we will find a finalized index that we have not seen yet, hence we need to loop here if this happens.
+    const previousFinalizedIndex = finalized ?? 0;
+    const newFinalizedIndexFound = false;
 
-    let [numConsecutiveEmptyLogs, currentIndex] = [0, startIndex];
-    let lastFoundLogIndex: number | undefined = undefined;
     do {
       // We compute the tags for the current window of indexes
-      const currentTags = await timesParallel(WINDOW_SIZE, async i => {
-        return SiloedTag.compute(await Tag.compute({ secret, index: currentIndex + i }), contractAddress);
-      });
+      const preTagsForWindow: PreTag[] = Array(WINDOW_HALF_SIZE)
+        .fill(0)
+        .map((_, i) => ({ secret, index: previousFinalizedIndex + i + 1 }));
+      const siloedTagsForWindow = await Promise.all(
+        preTagsForWindow.map(async preTag => SiloedTag.compute(await Tag.compute(preTag), contractAddress)),
+      );
 
       // We fetch the logs for the tags
       // TODO: The following conversion is unfortunate and we should most likely just type the #getPrivateLogsByTags
       // to accept SiloedTag[] instead of Fr[]. That would result in a large change so I didn't do it yet.
-      const tagsAsFr = currentTags.map(tag => tag.value);
+      const tagsAsFr = siloedTagsForWindow.map(tag => tag.value);
       const possibleLogs = await this.#getPrivateLogsByTags(tagsAsFr);
 
-      // We find the index of the last log in the window that is not empty
-      const indexOfLastLogWithinArray = possibleLogs.findLastIndex(possibleLog => possibleLog.length !== 0);
-
-      if (indexOfLastLogWithinArray === -1) {
-        // We haven't found any logs in the current window so we stop looking
-        break;
+      // We find the indexes that have logs
+      const indexesThatHaveLogs: number[] = [];
+      for (let i = 0; i < WINDOW_HALF_SIZE; i++) {
+        if (possibleLogs[i].length > 0) {
+          indexesThatHaveLogs.push(preTagsForWindow[i].index);
+        }
       }
 
-      // We've found logs so we update the last found log index
-      lastFoundLogIndex = (lastFoundLogIndex ?? 0) + indexOfLastLogWithinArray;
-      // We move the current index to that of the log right after the last found log
-      currentIndex = lastFoundLogIndex + 1;
-
-      // We compute the number of consecutive empty logs we found and repeat the process if we haven't found enough.
-      numConsecutiveEmptyLogs = WINDOW_SIZE - indexOfLastLogWithinArray - 1;
-    } while (numConsecutiveEmptyLogs < MIN_CONSECUTIVE_EMPTY_LOGS);
-
-    const contractName = await this.contractDataProvider.getDebugContractName(contractAddress);
-    if (lastFoundLogIndex !== undefined) {
-      // Last found index is defined meaning we have actually found logs so we update the last used index
-      await this.taggingDataProvider.setLastUsedIndexesAsSender([{ secret, index: lastFoundLogIndex }]);
-
-      this.log.debug(`Syncing logs for secret ${secret.toString()} at contract ${contractName}(${contractAddress})`, {
-        index: currentIndex,
-        contractName,
-        contractAddress,
-      });
-    } else {
-      this.log.debug(
-        `No new logs found for secret ${secret.toString()} at contract ${contractName}(${contractAddress})`,
-      );
-    }
+      // We check if any of the indexes are finalized
+    } while (newFinalizedIndexFound);
   }
 
+  /**
+   * Synchronizes the status of pending tagging indexes by checking transaction receipts and updating their status
+   * accordingly.
+   *
+   * @param secret - The directional app tagging secret identifying which pending indexes to synchronize
+   * @returns A promise that resolves when all pending indexes have been synchronized
+   */
   async #syncStatusOfPendingTaggingIndexes(secret: DirectionalAppTaggingSecret) {
     const pendingTxHashes = await this.taggingDataProvider.getPendingTxHashes(secret);
     if (pendingTxHashes.length > 0) {
-      // We have pending tx hashes so we need to check if the status of the corresponding tagging indexes need to be
-      // updated. For tagging purposes we only care whether the private logs that contain the tag that contains
-      // the index in its preimage should still be looked for. For this reason we don't care about logs of dropped
-      // or reverted txs. We also care whether a given transaction could potentially be dropped after a reorg as that
-      // affects how far into the future we are willing to slide our window of indexes. This is because if we slid it
-      // too far and then a reorg happened, we might accidentally miss some logs. For this reason we are willing to go
-      // only WINDOW_LENGTH far into the future from the last finalized index (finalized means it cannot get reorged).
-
       // Get receipts for all pending tx hashes and the finalized block number.
       const [receipts, { finalized }] = await Promise.all([
         Promise.all(pendingTxHashes.map(txHash => this.aztecNode.getTxReceipt(txHash))),

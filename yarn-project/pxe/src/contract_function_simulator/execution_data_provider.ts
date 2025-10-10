@@ -228,13 +228,15 @@ export interface ExecutionDataProvider {
   ): Promise<DirectionalAppTaggingSecret>;
 
   /**
-   * Updates the local index of the shared tagging secret of a (sender, recipient, contract) tuple if a log with
-   * a larger index is found from the node.
+   * Updates the highest finalized tagging index and pending tagging indexes for a given secret.
    * @param secret - The secret that's unique for (sender, recipient, contract) tuple while the direction
    * of sender -> recipient matters.
    * @param contractAddress - The address of the contract that the logs are tagged for. Needs to be provided to store
    * because the function performs second round of siloing which is necessary because kernels do it as well (they silo
    * first field of the private log which corresponds to the tag).
+   * @remarks When syncing the indexes as sender we don't care about the log contents - we only care about the
+   * highest pending and highest finalized indexes as that guides the next index choice when sending a log. The next
+   * index choice is simply the highest pending index plus one (or finalized if pending is undefined).
    */
   syncTaggedLogsAsSender(secret: DirectionalAppTaggingSecret, contractAddress: AztecAddress): Promise<void>;
 

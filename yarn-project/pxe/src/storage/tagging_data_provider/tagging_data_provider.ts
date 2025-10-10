@@ -114,18 +114,23 @@ export class TaggingDataProvider {
   }
 
   /**
-   * Returns the last pending index when sending a log with a given secret.
-   * @param secret - The directional app tagging secret.
-   * @returns The last pending index for the given directional app tagging secret, or undefined if not found.
+   * Returns the highest pending and finalized indexes for a given secret.
+   * @remarks Called "tips" because we already have the L2Tips type and this is a similar concept.
+   * @param secret - The secret to get the index tips for.
+   * @returns The highest seen pending and finalized indexes for the given secret.
    */
-  async getScopedPendingIndexesAsSender(secret: DirectionalAppTaggingSecret): Promise<number | undefined> {}
+  async getIndexTipsAsSender(
+    secret: DirectionalAppTaggingSecret,
+  ): Promise<{ pending: number | undefined; finalized: number | undefined }> {
+    const pendingIndexes = await this.#pendingIndexesAsSenders.getAsync(secret.toString());
+    const pending = pendingIndexes ? Math.max(...pendingIndexes.map(item => item.index)) : undefined;
+    const finalized = await this.#highestFinalizedIndexesAsSenders.getAsync(secret.toString());
 
-  /**
-   * Returns the last finalized index when sending a log with a given secret.
-   * @param secret - The directional app tagging secret.
-   * @returns The last finalized index for the given directional app tagging secret, or undefined if not found.
-   */
-  async getLastFinalizedIndexAsSender(secret: DirectionalAppTaggingSecret): Promise<number | undefined> {}
+    return {
+      pending,
+      finalized,
+    };
+  }
 
   /**
    * A tx that contained private logs with tags corresponding to some of the indexes returned from this data provider
