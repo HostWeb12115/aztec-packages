@@ -128,6 +128,25 @@ export class TaggingDataProvider {
     return this.#highestFinalizedIndexesAsSenders.getAsync(secret.toString());
   }
 
+  async getHighestUsedIndexAsSender(secret: DirectionalAppTaggingSecret): Promise<number | undefined> {
+    const highestFinalizedIndex = await this.#highestFinalizedIndexesAsSenders.getAsync(secret.toString());
+    const pendingTxScopedIndexes = (await this.#pendingIndexesAsSenders.getAsync(secret.toString())) ?? [];
+    const pendingIndexes = pendingTxScopedIndexes.map(entry => entry.index);
+
+    if (pendingTxScopedIndexes.length === 0) {
+      return highestFinalizedIndex;
+    }
+
+    const highestPendingIndex = Math.max(...pendingIndexes);
+    if (highestFinalizedIndex !== undefined && highestPendingIndex <= highestFinalizedIndex) {
+      throw new Error(
+        `Highest pending index ${highestPendingIndex} is lower than or equal to highest finalized index ${highestFinalizedIndex}. This is a bug and should never happen!`,
+      );
+    }
+
+    return highestPendingIndex;
+  }
+
   /**
    * A tx that contained private logs with tags corresponding to some of the indexes returned from this data provider
    * has been dropped so we delete the corresponding pending indexes. This results in the indexes being reused which

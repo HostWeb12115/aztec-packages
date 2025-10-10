@@ -244,7 +244,7 @@ describe('PXEOracleInterface', () => {
       );
 
       const getTaggingSecretsIndexesAsSenderForSenders = () =>
-        Promise.all(secrets.map(secret => taggingDataProvider.getLastUsedIndexesAsSender(secret)));
+        Promise.all(secrets.map(secret => taggingDataProvider.getHighestUsedIndexAsSender(secret)));
 
       const indexesAsSender = await getTaggingSecretsIndexesAsSenderForSenders();
       expect(indexesAsSender).toStrictEqual([

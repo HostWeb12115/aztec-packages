@@ -268,8 +268,8 @@ export class PXEOracleInterface implements ExecutionDataProvider {
     return this.taggingDataProvider.getSenderAddresses();
   }
 
-  public getLastUsedIndexAsSender(secret: DirectionalAppTaggingSecret): Promise<number | undefined> {
-    return this.taggingDataProvider.getLastUsedIndexesAsSender(secret);
+  public getHighestUsedIndexAsSender(secret: DirectionalAppTaggingSecret): Promise<number | undefined> {
+    return this.taggingDataProvider.getHighestUsedIndexAsSender(secret);
   }
 
   public async calculateDirectionalAppTaggingSecret(

@@ -77,6 +77,7 @@ import { PrivateEventDataProvider } from './storage/private_event_data_provider/
 import { SyncDataProvider } from './storage/sync_data_provider/sync_data_provider.js';
 import { TaggingDataProvider } from './storage/tagging_data_provider/tagging_data_provider.js';
 import { Synchronizer } from './synchronizer/index.js';
+import { WINDOW_HALF_SIZE } from './tagging/constants.js';
 
 /**
  * Private eXecution Environment (PXE) is a library used by wallets to simulate private phase of transactions and to
@@ -749,6 +750,17 @@ export class PXE {
         // from the same secret, we would reuse the tag and the transactions would be linked.
         const preTagsUsedInTheTx = privateExecutionResult.entrypoint.preTags;
         if (preTagsUsedInTheTx.length > 0) {
+          // First we check that for any secret the highest used index in tx is not further than window length from
+          // the highest finalized index.
+          for (const preTag of preTagsUsedInTheTx) {
+            const finalizedIndex = (await this.taggingDataProvider.getHighestFinalizedIndex(preTag.secret)) ?? 0;
+            if (preTag.index > finalizedIndex + WINDOW_HALF_SIZE) {
+              throw new Error(
+                `Highest used index ${preTag.index} is further than window length from the highest finalized index ${finalizedIndex}. Tagging window length ${WINDOW_HALF_SIZE} is configured too low. Contact the Aztec team to increase it!`,
+              );
+            }
+          }
+
           // TODO(benesjan): The following is an expensive operation. Figure out a way to avoid it.
           const txHash = (await txProvingResult.toTx()).txHash;
 

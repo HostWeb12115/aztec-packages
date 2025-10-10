@@ -228,7 +228,7 @@ export class PrivateExecutionOracle extends UtilityExecutionOracle implements IP
       // are up to date. We do this here because this store is not synced as part of the global sync because
       // that'd be wasteful as most tagging secrets are not used in each tx.
       await this.executionDataProvider.syncTaggedLogsAsSender(secret, this.contractAddress);
-      const lastUsedIndex = await this.executionDataProvider.getLastUsedIndexAsSender(secret);
+      const lastUsedIndex = await this.executionDataProvider.getHighestUsedIndexAsSender(secret);
       // If lastUsedIndex is undefined, we've never used this secret, so start from 0
       // Otherwise, the next index to use is one past the last used index
       return lastUsedIndex === undefined ? 0 : lastUsedIndex + 1;
