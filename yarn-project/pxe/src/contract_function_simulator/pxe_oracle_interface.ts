@@ -28,7 +28,7 @@ import { getNonNullifiedL1ToL2MessageWitness } from '@aztec/stdlib/messaging';
 import { Note, type NoteStatus } from '@aztec/stdlib/note';
 import { MerkleTreeId, type NullifierMembershipWitness, PublicDataWitness } from '@aztec/stdlib/trees';
 import type { BlockHeader } from '@aztec/stdlib/tx';
-import { TxHash } from '@aztec/stdlib/tx';
+import { TxHash, TxStatus } from '@aztec/stdlib/tx';
 
 import type { ExecutionDataProvider, ExecutionStats } from '../contract_function_simulator/execution_data_provider.js';
 import { MessageLoadOracleInputs } from '../contract_function_simulator/oracle/message_load_oracle_inputs.js';
@@ -340,6 +340,10 @@ export class PXEOracleInterface implements ExecutionDataProvider {
     secret: DirectionalAppTaggingSecret,
     contractAddress: AztecAddress,
   ): Promise<void> {
+    // First we need to sync the status of the pending tagging indexes as knowing the highest finalized and highest
+    // pending indexes is necessary to figure out which next index to use when sending a log.
+    await this.#syncStatusOfPendingTaggingIndexes(secret);
+
     const lastUsedIndex = await this.taggingDataProvider.getLastUsedIndexesAsSender(secret);
     // If lastUsedIndex is undefined, we've never used this secret, so start from 0
     // Otherwise, start from one past the last used index
@@ -401,7 +405,7 @@ export class PXEOracleInterface implements ExecutionDataProvider {
     }
   }
 
-  async #updateStatusOFPendingTaggingIndexes(secret: DirectionalAppTaggingSecret) {
+  async #syncStatusOfPendingTaggingIndexes(secret: DirectionalAppTaggingSecret) {
     const pendingTxHashes = await this.taggingDataProvider.getPendingTxHashes(secret);
     if (pendingTxHashes.length > 0) {
       // We have pending tx hashes so we need to check if the status of the corresponding tagging indexes need to be
@@ -412,17 +416,33 @@ export class PXEOracleInterface implements ExecutionDataProvider {
       // too far and then a reorg happened, we might accidentally miss some logs. For this reason we are willing to go
       // only WINDOW_LENGTH far into the future from the last finalized index (finalized means it cannot get reorged).
 
-      // Get receipts for all pending tx hashes
-      const receipts = await Promise.all(pendingTxHashes.map(txHash => this.aztecNode.getTxReceipt(txHash)));
+      // Get receipts for all pending tx hashes and the finalized block number.
+      const [receipts, { finalized }] = await Promise.all([
+        Promise.all(pendingTxHashes.map(txHash => this.aztecNode.getTxReceipt(txHash))),
+        this.aztecNode.getL2Tips(),
+      ]);
 
-      // Now we want to separate the receipts into 3 groups:
-      // 1. Tx still pending --> we don't do anything for these txs,
-      // 2. tx dropped or any part of the tx reverted --> we drop the corresponding tagging indexes from the tagging
-      //    data provider,
-      // 3. Tx included in a block --> we check if the corresponding block is finalized, if not we continue
-      //    treating the indexes as pending. If finalized, we mark the indexes used in that tx as finalized.
-      //
-      // TODO(#17615): Handle non-revertible and revertible phases.
+      for (let i = 0; i < receipts.length; i++) {
+        const receipt = receipts[i];
+        const txHash = pendingTxHashes[i];
+
+        if (receipt.status === TxStatus.SUCCESS && receipt.blockNumber && receipt.blockNumber <= finalized.number) {
+          // Tx has been included in a block and the corresponding block is finalized --> we mark the indexes as
+          // finalized.
+          await this.taggingDataProvider.updateStatusToFinalized(txHash);
+        } else if (
+          receipt.status === TxStatus.DROPPED ||
+          receipt.status === TxStatus.APP_LOGIC_REVERTED ||
+          receipt.status === TxStatus.TEARDOWN_REVERTED ||
+          receipt.status === TxStatus.BOTH_REVERTED
+        ) {
+          // Tx was dropped or reverted --> we drop the corresponding pending indexes.
+          // TODO(#17615): Don't drop pending indexes corresponding to non-revertible phases.
+          await this.taggingDataProvider.dropPendingIndexes(txHash);
+        } else {
+          // Tx is still pending or the corresponding block is not yet finalized --> we don't do anything.
+        }
+      }
     }
   }
 
