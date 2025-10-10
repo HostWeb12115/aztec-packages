@@ -23,9 +23,6 @@ export class TaggingDataProvider {
   // TODO(benesjan): document and rename
   #lastUsedIndexesAsRecipients: AztecAsyncMap<string, number>;
 
-  // Stores pending tx hashes for each directional app tagging secret.
-  #pendingTxHashes: AztecAsyncMap<string, TxHash[]>;
-
   constructor(store: AztecAsyncKVStore) {
     this.#store = store;
 
@@ -34,12 +31,11 @@ export class TaggingDataProvider {
     this.#pendingIndexesAsSenders = this.#store.openMap('pending_indexes_as_senders');
     this.#highestFinalizedIndexesAsSenders = this.#store.openMap('highest_finalized_indexes_as_senders');
     this.#lastUsedIndexesAsRecipients = this.#store.openMap('last_used_indexes_as_recipients');
-
-    this.#pendingTxHashes = this.#store.openMap('pending_tx_hashes');
   }
 
   /**
-   * Updates the last pending indexes when sending a log.
+   * Updates pending indexes as sender when sending a log. Ignores the update if the same preTag + txHash combination
+   * already exists.
    * @param preTags - The pre tags containing the directional app tagging secrets and the indexes that are to be
    * updated in the db.
    * @param txHash - The hash of the pending tx that use the given pre tags to compute private log tags.
@@ -47,14 +43,33 @@ export class TaggingDataProvider {
    * only about the highest index for a given secret that was used in the tx. Hence this check is a good way to catch
    * bugs.
    */
-  async updateLastPendingIndexesAsSender(preTags: PreTag[], txHash: TxHash) {
+  async updatePendingIndexesAsSender(preTags: PreTag[], txHash: TxHash) {
     this.#assertUniqueSecrets(preTags, 'sender');
 
     for (const { secret, index } of preTags) {
       const secretStr = secret.toString();
       const existing = (await this.#pendingIndexesAsSenders.getAsync(secretStr)) ?? [];
-      await this.#pendingIndexesAsSenders.set(secretStr, [...existing, { index, txHash }]);
+
+      // Check if this exact preTag + txHash combination already exists
+      const alreadyExists = existing.some(entry => entry.index === index && entry.txHash.equals(txHash));
+
+      if (!alreadyExists) {
+        await this.#pendingIndexesAsSenders.set(secretStr, [...existing, { index, txHash }]);
+      }
     }
+  }
+
+  async getTxHashesOfPendingIndexesForRangeForSecretAsSender(
+    secret: DirectionalAppTaggingSecret,
+    startIndex: number,
+    endIndex: number,
+  ): Promise<TxHash[]> {
+    const secretStr = secret.toString();
+    const existing = (await this.#pendingIndexesAsSenders.getAsync(secretStr)) ?? [];
+    const txHashes = existing
+      .filter(entry => entry.index >= startIndex && entry.index < endIndex)
+      .map(entry => entry.txHash);
+    return Array.from(new Set(txHashes));
   }
 
   /**
@@ -105,31 +120,12 @@ export class TaggingDataProvider {
   }
 
   /**
-   * Returns the pending tx hashes for that contained a tag computed based on the given secret.
-   * @param secret - The secret to get the pending tx hashes for.
-   * @returns The pending tx hashes for that contained a tag computed based on the given secret.
+   * Returns the highest finalized index for a given secret.
+   * @param secret - The secret to get the highest finalized index for.
+   * @returns The highest seen finalized index for the given secret.
    */
-  async getPendingTxHashes(secret: DirectionalAppTaggingSecret): Promise<TxHash[]> {
-    return (await this.#pendingTxHashes.getAsync(secret.toString())) ?? [];
-  }
-
-  /**
-   * Returns the highest pending and finalized indexes for a given secret.
-   * @remarks Called "tips" because we already have the L2Tips type and this is a similar concept.
-   * @param secret - The secret to get the index tips for.
-   * @returns The highest seen pending and finalized indexes for the given secret.
-   */
-  async getIndexTipsAsSender(
-    secret: DirectionalAppTaggingSecret,
-  ): Promise<{ pending: number | undefined; finalized: number | undefined }> {
-    const pendingIndexes = await this.#pendingIndexesAsSenders.getAsync(secret.toString());
-    const pending = pendingIndexes ? Math.max(...pendingIndexes.map(item => item.index)) : undefined;
-    const finalized = await this.#highestFinalizedIndexesAsSenders.getAsync(secret.toString());
-
-    return {
-      pending,
-      finalized,
-    };
+  getHighestFinalizedIndex(secret: DirectionalAppTaggingSecret): Promise<number | undefined> {
+    return this.#highestFinalizedIndexesAsSenders.getAsync(secret.toString());
   }
 
   /**
@@ -171,23 +167,27 @@ export class TaggingDataProvider {
         const matchingIndexes = pendingData
           .filter(item => item.txHash.toString() === txHashStr)
           .map(item => item.index);
-        const remainingItems = pendingData.filter(item => item.txHash.toString() !== txHashStr);
+        if (matchingIndexes.length === 1) {
+          // It could happen that the newly discovered finalized index is smaller than the current one because there
+          // might have been other pending tx with a higher finalized index in this round of syncing. For this reason
+          // we store the higher one.
+          const currentFinalized = await this.#highestFinalizedIndexesAsSenders.getAsync(secret);
+          const newFinalized = Math.max(currentFinalized ?? 0, matchingIndexes[0]);
+          await this.#highestFinalizedIndexesAsSenders.set(secret, newFinalized);
 
-        // Find highest index from matching items and update finalized if higher
-        const highestPendingIndex = Math.max(...matchingIndexes);
-        const currentFinalized = await this.#highestFinalizedIndexesAsSenders.getAsync(secret);
-        if (currentFinalized && highestPendingIndex < currentFinalized) {
-          throw new Error(
-            `Pending index ${highestPendingIndex} for secret ${secret} is lower than current highest finalized index ${currentFinalized}`,
-          );
-        }
-        await this.#highestFinalizedIndexesAsSenders.set(secret, highestPendingIndex);
+          // We store the remaining items with a higher index in pending.
+          const remainingItems = pendingData.filter(item => item.txHash.toString() !== txHashStr);
+          const remainingItemsOfHigherIndex = remainingItems.filter(item => item.index > newFinalized);
 
-        // Update or remove from pending
-        if (remainingItems.length === 0) {
-          await this.#pendingIndexesAsSenders.delete(secret);
-        } else {
-          await this.#pendingIndexesAsSenders.set(secret, remainingItems);
+          if (remainingItemsOfHigherIndex.length === 0) {
+            await this.#pendingIndexesAsSenders.delete(secret);
+          } else {
+            await this.#pendingIndexesAsSenders.set(secret, remainingItemsOfHigherIndex);
+          }
+        } else if (matchingIndexes.length > 1) {
+          // We should always just store the highest pending index for a given tx hash and secret because the lower
+          // values are irrelevant.
+          throw new Error(`Multiple pending indexes found for tx hash ${txHashStr} and secret ${secret}`);
         }
       }
     }

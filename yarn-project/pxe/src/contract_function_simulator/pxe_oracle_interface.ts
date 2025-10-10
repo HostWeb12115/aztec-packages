@@ -340,57 +340,32 @@ export class PXEOracleInterface implements ExecutionDataProvider {
     secret: DirectionalAppTaggingSecret,
     contractAddress: AztecAddress,
   ): Promise<void> {
-    // First we sync the status of the pending tagging indexes that are already stored in the local db.
-    await this.#syncStatusOfPendingTaggingIndexes(secret);
+    const finalizedIndex = await this.taggingDataProvider.getHighestFinalizedIndex(secret);
 
-    // Then we get the highest pending and finalized indexes for the secret.
-    const { pending, finalized } = await this.taggingDataProvider.getIndexTipsAsSender(secret);
+    let start = finalizedIndex === undefined ? 0 : finalizedIndex + 1;
+    let end = start + WINDOW_HALF_SIZE;
 
-    // We will only look for logs that are up to WINDOW_SIZE away from the highest finalized index. It's possible that
-    // we will find a finalized index that we have not seen yet, hence we need to loop here if this happens.
-    const previousFinalizedIndex = finalized ?? 0;
-    const newFinalizedIndexFound = false;
+    let previousFinalizedIndex = finalizedIndex;
+    let newFinalizedIndex = undefined;
 
-    do {
-      // We compute the tags for the current window of indexes
-      const preTagsForWindow: PreTag[] = Array(WINDOW_HALF_SIZE)
-        .fill(0)
-        .map((_, i) => ({ secret, index: previousFinalizedIndex + i + 1 }));
-      const siloedTagsForWindow = await Promise.all(
-        preTagsForWindow.map(async preTag => SiloedTag.compute(await Tag.compute(preTag), contractAddress)),
+    while (true) {
+      // Load and store indexes for the current window. These indexes may already exist in the database if txs using
+      // them were previously sent from this PXE. Any duplicates are handled by the tagging data provider.
+      await this.#loadAndStoreNewTaggingIndexes(secret, contractAddress, start, end);
+
+      // We get all the indexes for a given window from the store.
+      const pendingTxHashes = await this.taggingDataProvider.getTxHashesOfPendingIndexesForRangeForSecretAsSender(
+        secret,
+        start,
+        end,
       );
-
-      // We fetch the logs for the tags
-      // TODO: The following conversion is unfortunate and we should most likely just type the #getPrivateLogsByTags
-      // to accept SiloedTag[] instead of Fr[]. That would result in a large change so I didn't do it yet.
-      const tagsAsFr = siloedTagsForWindow.map(tag => tag.value);
-      const possibleLogs = await this.#getPrivateLogsByTags(tagsAsFr);
-
-      // We find the indexes that have logs
-      const indexesThatHaveLogs: number[] = [];
-      for (let i = 0; i < WINDOW_HALF_SIZE; i++) {
-        if (possibleLogs[i].length > 0) {
-          indexesThatHaveLogs.push(preTagsForWindow[i].index);
-        }
+      if (pendingTxHashes.length === 0) {
+        break;
       }
 
-      // We check if any of the indexes are finalized
-    } while (newFinalizedIndexFound);
-  }
-
-  /**
-   * Synchronizes the status of pending tagging indexes by checking transaction receipts and updating their status
-   * accordingly.
-   *
-   * @param secret - The directional app tagging secret identifying which pending indexes to synchronize
-   * @returns A promise that resolves when all pending indexes have been synchronized
-   */
-  async #syncStatusOfPendingTaggingIndexes(secret: DirectionalAppTaggingSecret) {
-    const pendingTxHashes = await this.taggingDataProvider.getPendingTxHashes(secret);
-    if (pendingTxHashes.length > 0) {
       // Get receipts for all pending tx hashes and the finalized block number.
       const [receipts, { finalized }] = await Promise.all([
-        Promise.all(pendingTxHashes.map(txHash => this.aztecNode.getTxReceipt(txHash))),
+        Promise.all(pendingTxHashes.map(pendingTxHash => this.aztecNode.getTxReceipt(pendingTxHash))),
         this.aztecNode.getL2Tips(),
       ]);
 
@@ -415,6 +390,65 @@ export class PXEOracleInterface implements ExecutionDataProvider {
           // Tx is still pending or the corresponding block is not yet finalized --> we don't do anything.
         }
       }
+
+      // We check if the finalized index has been updated.
+      newFinalizedIndex = await this.taggingDataProvider.getHighestFinalizedIndex(secret);
+      if (previousFinalizedIndex !== newFinalizedIndex) {
+        // We found a new finalized index so we will run the loop again. Let's say the previous finalized index is 10
+        // and new finalized index is 13 and the window length is 10. Then in the last iteration we have looked for
+        // indexes:
+        // we want to cover the new window length but we don't want to look for the same logs again so we will look for
+        // indexes:
+        // previous iteration:   [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        // new iteration:                                               [21, 22, 23]
+
+        const previousEnd = end;
+        end = newFinalizedIndex! + 1 + WINDOW_HALF_SIZE;
+        start = previousEnd;
+        previousFinalizedIndex = newFinalizedIndex;
+      } else {
+        break;
+      }
+    }
+  }
+
+  async #loadAndStoreNewTaggingIndexes(
+    secret: DirectionalAppTaggingSecret,
+    contractAddress: AztecAddress,
+    start: number,
+    end: number,
+  ) {
+    // We compute the tags for the current window of indexes
+    const preTagsForWindow: PreTag[] = Array(end - start + 1)
+      .fill(0)
+      .map((_, i) => ({ secret, index: start + i }));
+    const siloedTagsForWindow = await Promise.all(
+      preTagsForWindow.map(async preTag => SiloedTag.compute(await Tag.compute(preTag), contractAddress)),
+    );
+
+    const tagsAsFr = siloedTagsForWindow.map(tag => tag.value);
+    const possibleLogs = await this.#getPrivateLogsByTags(tagsAsFr);
+
+    // Now we want to find the highest index for a given [secret, txHash] pair.
+    // txHash -> highest found index
+    const highestIndexMap = new Map<string, number>();
+
+    for (let i = 0; i < possibleLogs.length; i++) {
+      const taggingIndex = preTagsForWindow[i].index;
+      // There can be multiple logs for a given tag because it can happen that tags are reused (e.g. when sending a tx
+      // from multiple wallets at the same time).
+      const logsForTag = possibleLogs[i];
+
+      for (const txScopedLog of logsForTag) {
+        const key = txScopedLog.txHash.toString();
+        highestIndexMap.set(key, Math.max(highestIndexMap.get(key) ?? 0, taggingIndex));
+      }
+    }
+
+    // Now we iterate over the map, reconstruct the preTags and tx hash and store them in the db.
+    for (const [txHashStr, highestIndex] of highestIndexMap.entries()) {
+      const txHash = TxHash.fromString(txHashStr);
+      await this.taggingDataProvider.updatePendingIndexesAsSender([{ secret, index: highestIndex }], txHash);
     }
   }
 
