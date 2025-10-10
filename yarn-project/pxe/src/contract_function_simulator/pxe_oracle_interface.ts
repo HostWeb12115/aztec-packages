@@ -396,11 +396,11 @@ export class PXEOracleInterface implements ExecutionDataProvider {
       if (previousFinalizedIndex !== newFinalizedIndex) {
         // We found a new finalized index so we will run the loop again. Let's say the previous finalized index is 10
         // and new finalized index is 13 and the window length is 10. Then in the last iteration we have looked for
-        // indexes:
-        // we want to cover the new window length but we don't want to look for the same logs again so we will look for
-        // indexes:
-        // previous iteration:   [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-        // new iteration:                                               [21, 22, 23]
+        // indexes 11 to 20 (inclusive) now we want to cover the new window length but we don't want to look for
+        // the same logs again so we will look for indexes 21 to 23 (inclusive):
+        //
+        //    previous iteration:   [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        //    new iteration:                                               [21, 22, 23]
 
         const previousEnd = end;
         end = newFinalizedIndex! + 1 + WINDOW_HALF_SIZE;
