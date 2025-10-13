@@ -90,6 +90,8 @@ describe('TaggingSync', () => {
   });
 
   describe('sequential tests', () => {
+    let pendingTxHash: TxHash;
+
     beforeAll(async () => {
       await setUp();
     });
@@ -133,7 +135,7 @@ describe('TaggingSync', () => {
 
     it('step 2: pending log is synced', async () => {
       // Create a tx hash for the log
-      const txHash = TxHash.random();
+      pendingTxHash = TxHash.random();
 
       const finalizedBlockNumber = 15;
       const pendingIndex = 5;
@@ -145,7 +147,7 @@ describe('TaggingSync', () => {
       aztecNode.getLogsByTags.mockImplementation((tags: Fr[]) => {
         // Return empty arrays for all tags except the one at index 3
         return Promise.resolve(
-          tags.map((tag: Fr) => (tag.equals(index5Tag.value) ? [makeLog(txHash, index5Tag.value)] : [])),
+          tags.map((tag: Fr) => (tag.equals(index5Tag.value) ? [makeLog(pendingTxHash, index5Tag.value)] : [])),
         );
       });
 
@@ -168,10 +170,47 @@ describe('TaggingSync', () => {
       // Verify the highest used index also returns 3
       expect(await taggingDataProvider.getHighestUsedIndexAsSender(secret)).toBe(pendingIndex);
     });
+
+    it('step 3: tx with pending index is dropped', async () => {
+      const finalizedBlockNumber = 15;
+      const pendingIndex = 5;
+
+      taggingDataProvider.dropPendingIndexes(pendingTxHash);
+
+      // // Create a log with tag index 3
+      // const index5Tag = await computeSiloedTagForIndex(pendingIndex);
+
+      // // Mock getLogsByTags to return the log for tag index 5
+      // aztecNode.getLogsByTags.mockImplementation((tags: Fr[]) => {
+      //   // Return empty arrays for all tags except the one at index 3
+      //   return Promise.resolve(
+      //     tags.map((tag: Fr) => (tag.equals(index5Tag.value) ? [makeLog(txHash, index5Tag.value)] : [])),
+      //   );
+      // });
+
+      // // Mock getTxReceipt to return a successful, finalized tx
+      // aztecNode.getTxReceipt.mockResolvedValue({
+      //   status: TxStatus.SUCCESS,
+      //   blockNumber: finalizedBlockNumber + 1,
+      // } as any);
+
+      // // Mock getL2Tips to return a finalized block number >= the tx block number
+      // aztecNode.getL2Tips.mockResolvedValue({
+      //   finalized: { number: finalizedBlockNumber },
+      // } as any);
+
+      // // Sync tagged logs
+      // await pxeOracleInterface.syncTaggedLogsAsSender(secret, contractAddress);
+
+      // Verify the highest finalized index is updated to 3
+      expect(await taggingDataProvider.getHighestFinalizedIndex(secret)).toBe(3);
+      // Verify the highest used index also returns 3
+      expect(await taggingDataProvider.getHighestUsedIndexAsSender(secret)).toBe(pendingIndex);
+    });
   });
 
   /**
-   * This test verifies that when multiple logs use the same tag, we correctly identify and handle the finalized log.
+   * This test verifies that when multiple logs use the same tag, we correctly bump the finalized index.
    */
   it('handles pending and finalized logs found at the same index', async () => {
     await setUp();
