@@ -77,12 +77,12 @@ describe('TaggingSync', () => {
   it('no new logs found for a given secret', async () => {
     await setUp();
 
-    aztecNode.getLogsByTags.mockImplementation(async (tags: Fr[]) => {
+    aztecNode.getLogsByTags.mockImplementation((tags: Fr[]) => {
       // No log found for any tag
-      return tags.map((_tag: Fr) => []);
+      return Promise.resolve(tags.map((_tag: Fr) => []));
     });
 
-    pxeOracleInterface.syncTaggedLogsAsSender(secret, contractAddress);
+    await pxeOracleInterface.syncTaggedLogsAsSender(secret, contractAddress);
 
     // Highest used and finalized indexes should stay undefined
     expect(await taggingDataProvider.getHighestUsedIndexAsSender(secret)).toBeUndefined();
@@ -186,7 +186,7 @@ describe('TaggingSync', () => {
     const index3Tag = await computeSiloedTagForIndex(3);
 
     // Mock getLogsByTags to return the log for tag index 3
-    aztecNode.getLogsByTags.mockImplementation(async (tags: Fr[]) => {
+    aztecNode.getLogsByTags.mockImplementation((tags: Fr[]) => {
       return Promise.resolve(
         tags.map((tag: Fr) =>
           tag.equals(index3Tag.value)
