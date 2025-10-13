@@ -2,7 +2,7 @@ import { toArray } from '@aztec/foundation/iterable';
 import type { AztecAsyncKVStore, AztecAsyncMap } from '@aztec/kv-store';
 import { AztecAddress } from '@aztec/stdlib/aztec-address';
 import type { DirectionalAppTaggingSecret, PreTag } from '@aztec/stdlib/logs';
-import type { TxHash } from '@aztec/stdlib/tx';
+import { TxHash } from '@aztec/stdlib/tx';
 
 export class TaggingDataProvider {
   #store: AztecAsyncKVStore;
@@ -13,7 +13,7 @@ export class TaggingDataProvider {
 
   // Stores all the pending indexes for each directional app tagging secret. Pending here means that the tx that
   // contained the private logs with tags corresponding to these indexes has not been finalized yet.
-  #pendingIndexesAsSenders: AztecAsyncMap<string, { index: number; txHash: TxHash }[]>;
+  #pendingIndexesAsSenders: AztecAsyncMap<string, { index: number; txHash: string }[]>;
 
   // Stores the highest finalized index for each directional app tagging secret. We care only about the highest index
   // because unlike the pending indexes, it will never happen that a finalized index would be removed and hence we
@@ -51,10 +51,10 @@ export class TaggingDataProvider {
       const existing = (await this.#pendingIndexesAsSenders.getAsync(secretStr)) ?? [];
 
       // Check if this exact preTag + txHash combination already exists
-      const alreadyExists = existing.some(entry => entry.index === index && entry.txHash.equals(txHash));
+      const alreadyExists = existing.some(entry => entry.index === index && entry.txHash === txHash.toString());
 
       if (!alreadyExists) {
-        await this.#pendingIndexesAsSenders.set(secretStr, [...existing, { index, txHash }]);
+        await this.#pendingIndexesAsSenders.set(secretStr, [...existing, { index, txHash: txHash.toString() }]);
       }
     }
   }
@@ -69,7 +69,7 @@ export class TaggingDataProvider {
     const txHashes = existing
       .filter(entry => entry.index >= startIndex && entry.index < endIndex)
       .map(entry => entry.txHash);
-    return Array.from(new Set(txHashes));
+    return Array.from(new Set(txHashes)).map(TxHash.fromString);
   }
 
   /**
