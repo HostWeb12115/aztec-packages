@@ -1,4 +1,3 @@
-import { MAX_PRIVATE_LOGS_PER_TX } from '@aztec/constants';
 import type { AztecAddress } from '@aztec/stdlib/aztec-address';
 import type { AztecNode } from '@aztec/stdlib/interfaces/server';
 import type { DirectionalAppTaggingSecret, PreTag, TxScopedL2Log } from '@aztec/stdlib/logs';
@@ -9,9 +8,13 @@ import { SiloedTag } from './siloed_tag.js';
 import { Tag } from './tag.js';
 
 // This window has to be as large as the largest expected number of logs emitted in a tx for a given directional app
-// tagging secret. If we get more logs than this window length, an error is thrown in `PXE::proveTx` function. Since
-// tag indexes are consumed only for private logs it makes sense to set it to MAX_PRIVATE_LOGS_PER_TX.
-export const WINDOW_LEN = MAX_PRIVATE_LOGS_PER_TX;
+// tagging secret. If we get more tag indexes consumed than this window, an error is thrown in `PXE::proveTx` function.
+// This is set to a larger value than MAX_PRIVATE_LOGS_PER_TX (currently 32) because there could be more than
+// MAX_PRIVATE_LOGS_PER_TX indexes consumed in case the logs are squashed. This happens when the log contains a note
+// and the note is nullified in the same tx.
+// Note: Set it to 100 because `e2e_pending_note_hashes_contract` test hit 95 indexes emitted. I (benesjan) think this
+// window length should be fine.
+export const WINDOW_LEN = 100;
 
 /**
  * Syncs the highest finalized tagging index and pending tagging indexes for a given secret.
