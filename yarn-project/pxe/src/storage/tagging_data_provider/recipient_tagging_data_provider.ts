@@ -62,6 +62,11 @@ export class RecipientTaggingDataProvider {
     });
   }
 
+  // It might seem weird that the following 3 methods are in RecipientTaggingDataProvider and not
+  // in SenderTaggingDataProvider but that is because this data is truly only used for the purposes of syncing logs
+  // as a recipient. When sending logs or when syncing sender tagging indexes we only receive directional app tagging
+  // secret from Aztec.nr via an oracle and we don't need to access sender addresses.
+
   async addSenderAddress(address: AztecAddress): Promise<boolean> {
     if (await this.#addressBook.hasAsync(address.toString())) {
       return false;

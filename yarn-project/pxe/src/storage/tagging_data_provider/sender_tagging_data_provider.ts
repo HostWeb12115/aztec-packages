@@ -3,11 +3,19 @@ import type { AztecAsyncKVStore, AztecAsyncMap } from '@aztec/kv-store';
 import type { DirectionalAppTaggingSecret, PreTag } from '@aztec/stdlib/logs';
 import { TxHash } from '@aztec/stdlib/tx';
 
+/**
+ * Data provider of tagging data used when syncing the sender tagging indexes. The recipient alternative of this class is
+ * called RecipientTaggingDataProvider. We have the providers separate for the sender and recipient because
+ * the algorithms are completely disjoint and there is not data reuse between the 2.
+ */
 export class SenderTaggingDataProvider {
   #store: AztecAsyncKVStore;
 
-  // Stores all the pending indexes for each directional app tagging secret. Pending here means that the tx that
-  // contained the private logs with tags corresponding to these indexes has not been finalized yet.
+  // Stores the pending indexes for each directional app tagging secret. Pending here means that the tx that
+  // contained the private logs with tags corresponding to these indexes has not been finalized yet. We don't store
+  // just the highest index because it could happen that some of the transactions are dropped and then we need
+  // the information about the lower pending indexes. But we store just one index per secret-txHash pair as only
+  // the highest index in the given tx is relevant for future index choice when sending a private log.
   #pendingIndexes: AztecAsyncMap<string, { index: number; txHash: string }[]>;
 
   // Stores the highest finalized index for each directional app tagging secret. We care only about the highest index
