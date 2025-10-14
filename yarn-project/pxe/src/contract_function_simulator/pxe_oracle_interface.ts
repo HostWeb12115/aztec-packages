@@ -39,7 +39,8 @@ import { NoteDao } from '../storage/note_data_provider/note_dao.js';
 import type { NoteDataProvider } from '../storage/note_data_provider/note_data_provider.js';
 import type { PrivateEventDataProvider } from '../storage/private_event_data_provider/private_event_data_provider.js';
 import type { SyncDataProvider } from '../storage/sync_data_provider/sync_data_provider.js';
-import type { TaggingDataProvider } from '../storage/tagging_data_provider/tagging_data_provider.js';
+import type { RecipientTaggingDataProvider } from '../storage/tagging_data_provider/recipient_tagging_data_provider.js';
+import type { SenderTaggingDataProvider } from '../storage/tagging_data_provider/sender_tagging_data_provider.js';
 import {
   DirectionalAppTaggingSecret,
   SiloedTag,
@@ -66,7 +67,8 @@ export class PXEOracleInterface implements ExecutionDataProvider {
     private noteDataProvider: NoteDataProvider,
     private capsuleDataProvider: CapsuleDataProvider,
     private syncDataProvider: SyncDataProvider,
-    private taggingDataProvider: TaggingDataProvider,
+    private senderTaggingDataProvider: SenderTaggingDataProvider,
+    private recipientTaggingDataProvider: RecipientTaggingDataProvider,
     private addressDataProvider: AddressDataProvider,
     private privateEventDataProvider: PrivateEventDataProvider,
     private log = createLogger('pxe:pxe_oracle_interface'),
@@ -265,11 +267,11 @@ export class PXEOracleInterface implements ExecutionDataProvider {
    * @returns The full list of the users contact addresses.
    */
   public getSenders(): Promise<AztecAddress[]> {
-    return this.taggingDataProvider.getSenderAddresses();
+    return this.recipientTaggingDataProvider.getSenderAddresses();
   }
 
   public getHighestUsedIndexAsSender(secret: DirectionalAppTaggingSecret): Promise<number | undefined> {
-    return this.taggingDataProvider.getHighestUsedIndexAsSender(secret);
+    return this.senderTaggingDataProvider.getHighestUsedIndex(secret);
   }
 
   public async calculateDirectionalAppTaggingSecret(
@@ -311,7 +313,7 @@ export class PXEOracleInterface implements ExecutionDataProvider {
     // We implicitly add all PXE accounts as senders, this helps us decrypt tags on notes that we send to ourselves
     // (recipient = us, sender = us)
     const senders = [
-      ...(await this.taggingDataProvider.getSenderAddresses()),
+      ...(await this.recipientTaggingDataProvider.getSenderAddresses()),
       ...(await this.keyStore.getAccounts()),
     ].filter((address, index, self) => index === self.findIndex(otherAddress => otherAddress.equals(address)));
     const secrets = await Promise.all(
@@ -325,7 +327,7 @@ export class PXEOracleInterface implements ExecutionDataProvider {
         );
       }),
     );
-    const indexes = await this.taggingDataProvider.getLastUsedIndexesAsRecipient(secrets);
+    const indexes = await this.recipientTaggingDataProvider.getLastUsedIndexes(secrets);
     if (indexes.length !== secrets.length) {
       throw new Error('Indexes and directional app tagging secrets have different lengths');
     }
@@ -343,7 +345,7 @@ export class PXEOracleInterface implements ExecutionDataProvider {
     secret: DirectionalAppTaggingSecret,
     contractAddress: AztecAddress,
   ): Promise<void> {
-    await syncSenderTaggingIndexes(secret, contractAddress, this.aztecNode, this.taggingDataProvider);
+    await syncSenderTaggingIndexes(secret, contractAddress, this.aztecNode, this.senderTaggingDataProvider);
   }
 
   /**
@@ -501,7 +503,7 @@ export class PXEOracleInterface implements ExecutionDataProvider {
       // At this point we have processed all the logs for the recipient so we store the last used indexes in the db.
       // newLargestIndexMapToStore contains "next" indexes to look for (one past the last found), so subtract 1 to get
       // last used.
-      await this.taggingDataProvider.setLastUsedIndexesAsRecipient(
+      await this.recipientTaggingDataProvider.setLastUsedIndexes(
         Object.entries(newLargestIndexMapToStore).map(([directionalAppTaggingSecret, index]) => ({
           secret: DirectionalAppTaggingSecret.fromString(directionalAppTaggingSecret),
           index: index - 1,

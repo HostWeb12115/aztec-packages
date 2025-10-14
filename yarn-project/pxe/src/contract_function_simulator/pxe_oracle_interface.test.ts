@@ -24,7 +24,8 @@ import { NoteDao } from '../storage/note_data_provider/note_dao.js';
 import { NoteDataProvider } from '../storage/note_data_provider/note_data_provider.js';
 import { PrivateEventDataProvider } from '../storage/private_event_data_provider/private_event_data_provider.js';
 import { SyncDataProvider } from '../storage/sync_data_provider/sync_data_provider.js';
-import { TaggingDataProvider } from '../storage/tagging_data_provider/tagging_data_provider.js';
+import { RecipientTaggingDataProvider } from '../storage/tagging_data_provider/recipient_tagging_data_provider.js';
+import { SenderTaggingDataProvider } from '../storage/tagging_data_provider/sender_tagging_data_provider.js';
 import { WINDOW_HALF_SIZE } from '../tagging/constants.js';
 import { SiloedTag } from '../tagging/siloed_tag.js';
 import { Tag } from '../tagging/tag.js';
@@ -58,7 +59,8 @@ describe('PXEOracleInterface', () => {
   let contractDataProvider: ContractDataProvider;
   let noteDataProvider: NoteDataProvider;
   let syncDataProvider: SyncDataProvider;
-  let taggingDataProvider: TaggingDataProvider;
+  let senderTaggingDataProvider: SenderTaggingDataProvider;
+  let recipientTaggingDataProvider: RecipientTaggingDataProvider;
   let capsuleDataProvider: CapsuleDataProvider;
   let keyStore: KeyStore;
 
@@ -82,7 +84,8 @@ describe('PXEOracleInterface', () => {
     privateEventDataProvider = new PrivateEventDataProvider(store);
     noteDataProvider = await NoteDataProvider.create(store);
     syncDataProvider = new SyncDataProvider(store);
-    taggingDataProvider = new TaggingDataProvider(store);
+    senderTaggingDataProvider = new SenderTaggingDataProvider(store);
+    recipientTaggingDataProvider = new RecipientTaggingDataProvider(store);
     capsuleDataProvider = new CapsuleDataProvider(store);
     keyStore = new KeyStore(store);
     pxeOracleInterface = new PXEOracleInterface(
@@ -92,7 +95,8 @@ describe('PXEOracleInterface', () => {
       noteDataProvider,
       capsuleDataProvider,
       syncDataProvider,
-      taggingDataProvider,
+      senderTaggingDataProvider,
+      recipientTaggingDataProvider,
       addressDataProvider,
       privateEventDataProvider,
     ); // Set up contract address
@@ -173,7 +177,7 @@ describe('PXEOracleInterface', () => {
         return { completeAddress, ivsk: keys.masterIncomingViewingSecretKey, secretKey: new Fr(index) };
       });
       for (const sender of senders) {
-        await taggingDataProvider.addSenderAddress(sender.completeAddress.address);
+        await recipientTaggingDataProvider.addSenderAddress(sender.completeAddress.address);
       }
       aztecNode.getLogsByTags.mockReset();
       aztecNode.getTxEffect.mockResolvedValue({
@@ -209,7 +213,7 @@ describe('PXEOracleInterface', () => {
       // First sender should have 2 logs, but keep index 0 since they were built using the same tag
       // Next 4 senders should also have index 0 = offset + 0
       // Last 5 senders should have index 1 = offset + 1
-      const indexes = await taggingDataProvider.getLastUsedIndexesAsRecipient(secrets);
+      const indexes = await recipientTaggingDataProvider.getLastUsedIndexes(secrets);
 
       expect(indexes).toHaveLength(NUM_SENDERS);
       expect(indexes).toEqual([0, 0, 0, 0, 0, 1, 1, 1, 1, 1]);
@@ -245,7 +249,7 @@ describe('PXEOracleInterface', () => {
       // First sender should have 2 logs, but keep index 5 since they were built using the same tag
       // Next 4 senders should also have index 5 = offset
       // Last 5 senders should have index 6 = offset + 1
-      const indexes = await taggingDataProvider.getLastUsedIndexesAsRecipient(secrets);
+      const indexes = await recipientTaggingDataProvider.getLastUsedIndexes(secrets);
 
       expect(indexes).toHaveLength(NUM_SENDERS);
       expect(indexes).toEqual([5, 5, 5, 5, 5, 6, 6, 6, 6, 6]);
@@ -274,7 +278,7 @@ describe('PXEOracleInterface', () => {
       );
 
       // Set last used indexes to 1 (so next scan starts at 2)
-      await taggingDataProvider.setLastUsedIndexesAsRecipient(secrets.map(secret => ({ secret, index: 1 })));
+      await recipientTaggingDataProvider.setLastUsedIndexes(secrets.map(secret => ({ secret, index: 1 })));
 
       await pxeOracleInterface.syncTaggedLogs(contractAddress, PENDING_TAGGED_LOG_ARRAY_BASE_SLOT);
 
@@ -285,7 +289,7 @@ describe('PXEOracleInterface', () => {
       // First sender should have 2 logs, but keep index 1 since they were built using the same tag
       // Next 4 senders should also have index 1 = tagIndex
       // Last 5 senders should have index 2 = tagIndex + 1
-      const indexes = await taggingDataProvider.getLastUsedIndexesAsRecipient(secrets);
+      const indexes = await recipientTaggingDataProvider.getLastUsedIndexes(secrets);
 
       expect(indexes).toHaveLength(NUM_SENDERS);
       expect(indexes).toEqual([1, 1, 1, 1, 1, 2, 2, 2, 2, 2]);
@@ -316,7 +320,7 @@ describe('PXEOracleInterface', () => {
       // We set the last used indexes to WINDOW_HALF_SIZE so that next scan starts at WINDOW_HALF_SIZE + 1,
       // which is outside the window, and for this reason no updates should be triggered.
       const index = WINDOW_HALF_SIZE + 1;
-      await taggingDataProvider.setLastUsedIndexesAsRecipient(secrets.map(secret => ({ secret, index })));
+      await recipientTaggingDataProvider.setLastUsedIndexes(secrets.map(secret => ({ secret, index })));
 
       await pxeOracleInterface.syncTaggedLogs(contractAddress, PENDING_TAGGED_LOG_ARRAY_BASE_SLOT);
 
@@ -325,7 +329,7 @@ describe('PXEOracleInterface', () => {
       await expectPendingTaggedLogArrayLengthToBe(contractAddress, NUM_SENDERS / 2);
 
       // Indexes should remain where we set them (window_size)
-      const indexes = await taggingDataProvider.getLastUsedIndexesAsRecipient(secrets);
+      const indexes = await recipientTaggingDataProvider.getLastUsedIndexes(secrets);
 
       expect(indexes).toHaveLength(NUM_SENDERS);
       expect(indexes).toEqual([index, index, index, index, index, index, index, index, index, index]);
@@ -352,7 +356,7 @@ describe('PXEOracleInterface', () => {
         ),
       );
 
-      await taggingDataProvider.setLastUsedIndexesAsRecipient(
+      await recipientTaggingDataProvider.setLastUsedIndexes(
         secrets.map(secret => ({ secret, index: WINDOW_HALF_SIZE + 2 })),
       );
 
@@ -368,14 +372,14 @@ describe('PXEOracleInterface', () => {
       aztecNode.getLogsByTags.mockClear();
 
       // Wipe the database
-      await taggingDataProvider.resetNoteSyncData();
+      await recipientTaggingDataProvider.resetNoteSyncData();
 
       await pxeOracleInterface.syncTaggedLogs(contractAddress, PENDING_TAGGED_LOG_ARRAY_BASE_SLOT);
 
       // First sender should have 2 logs, but keep index 0 since they were built using the same tag
       // Next 4 senders should also have index 0 = offset
       // Last 5 senders should have index 1 = offset + 1
-      const indexes = await taggingDataProvider.getLastUsedIndexesAsRecipient(secrets);
+      const indexes = await recipientTaggingDataProvider.getLastUsedIndexes(secrets);
 
       expect(indexes).toHaveLength(NUM_SENDERS);
       expect(indexes).toEqual([0, 0, 0, 0, 0, 1, 1, 1, 1, 1]);

@@ -10,7 +10,7 @@ import { type MockProxy, mock } from 'jest-mock-extended';
 
 import { NoteDataProvider } from '../storage/note_data_provider/note_data_provider.js';
 import { SyncDataProvider } from '../storage/sync_data_provider/sync_data_provider.js';
-import { TaggingDataProvider } from '../storage/tagging_data_provider/tagging_data_provider.js';
+import { RecipientTaggingDataProvider } from '../storage/tagging_data_provider/recipient_tagging_data_provider.js';
 import { Synchronizer } from './synchronizer.js';
 
 describe('Synchronizer', () => {
@@ -18,7 +18,7 @@ describe('Synchronizer', () => {
   let tipsStore: L2TipsKVStore;
   let syncDataProvider: SyncDataProvider;
   let noteDataProvider: NoteDataProvider;
-  let taggingDataProvider: TaggingDataProvider;
+  let taggingDataProvider: RecipientTaggingDataProvider;
   let aztecNode: MockProxy<AztecNode>;
   let blockStream: MockProxy<L2BlockStream>;
 
@@ -35,7 +35,7 @@ describe('Synchronizer', () => {
     tipsStore = new L2TipsKVStore(store, 'pxe');
     syncDataProvider = new SyncDataProvider(store);
     noteDataProvider = await NoteDataProvider.create(store);
-    taggingDataProvider = new TaggingDataProvider(store);
+    taggingDataProvider = new RecipientTaggingDataProvider(store);
     synchronizer = new TestSynchronizer(aztecNode, syncDataProvider, noteDataProvider, taggingDataProvider, tipsStore);
   });
 

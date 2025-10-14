@@ -9,7 +9,8 @@ import {
   NoteDataProvider,
   PXEOracleInterface,
   PrivateEventDataProvider,
-  TaggingDataProvider,
+  RecipientTaggingDataProvider,
+  SenderTaggingDataProvider,
 } from '@aztec/pxe/server';
 import {
   ExecutionNoteCache,
@@ -140,7 +141,8 @@ export class TXESession implements TXESessionStateHandler {
     const privateEventDataProvider = new PrivateEventDataProvider(store);
     const contractDataProvider = new TXEContractDataProvider(store);
     const noteDataProvider = await NoteDataProvider.create(store);
-    const taggingDataProvider = new TaggingDataProvider(store);
+    const senderTaggingDataProvider = new SenderTaggingDataProvider(store);
+    const recipientTaggingDataProvider = new RecipientTaggingDataProvider(store);
     const capsuleDataProvider = new CapsuleDataProvider(store);
     const keyStore = new KeyStore(store);
     const accountDataProvider = new TXEAccountDataProvider(store);
@@ -164,7 +166,8 @@ export class TXESession implements TXESessionStateHandler {
       noteDataProvider,
       capsuleDataProvider,
       stateMachine.syncDataProvider,
-      taggingDataProvider,
+      senderTaggingDataProvider,
+      recipientTaggingDataProvider,
       addressDataProvider,
       privateEventDataProvider,
     );

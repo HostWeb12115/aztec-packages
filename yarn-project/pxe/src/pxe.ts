@@ -75,7 +75,8 @@ import { ContractDataProvider } from './storage/contract_data_provider/contract_
 import { NoteDataProvider } from './storage/note_data_provider/note_data_provider.js';
 import { PrivateEventDataProvider } from './storage/private_event_data_provider/private_event_data_provider.js';
 import { SyncDataProvider } from './storage/sync_data_provider/sync_data_provider.js';
-import { TaggingDataProvider } from './storage/tagging_data_provider/tagging_data_provider.js';
+import { RecipientTaggingDataProvider } from './storage/tagging_data_provider/recipient_tagging_data_provider.js';
+import { SenderTaggingDataProvider } from './storage/tagging_data_provider/sender_tagging_data_provider.js';
 import { Synchronizer } from './synchronizer/index.js';
 import { WINDOW_LEN as SENDER_TAGGING_INDEXES_SYNC_WINDOW_LEN } from './tagging/sync_sender_tagging_indexes.js';
 
@@ -92,7 +93,8 @@ export class PXE {
     private noteDataProvider: NoteDataProvider,
     private capsuleDataProvider: CapsuleDataProvider,
     private syncDataProvider: SyncDataProvider,
-    private taggingDataProvider: TaggingDataProvider,
+    private senderTaggingDataProvider: SenderTaggingDataProvider,
+    private recipientTaggingDataProvider: RecipientTaggingDataProvider,
     private addressDataProvider: AddressDataProvider,
     private privateEventDataProvider: PrivateEventDataProvider,
     private simulator: CircuitSimulator,
@@ -130,7 +132,8 @@ export class PXE {
     const contractDataProvider = new ContractDataProvider(store);
     const noteDataProvider = await NoteDataProvider.create(store);
     const syncDataProvider = new SyncDataProvider(store);
-    const taggingDataProvider = new TaggingDataProvider(store);
+    const senderTaggingDataProvider = new SenderTaggingDataProvider(store);
+    const recipientTaggingDataProvider = new RecipientTaggingDataProvider(store);
     const capsuleDataProvider = new CapsuleDataProvider(store);
     const keyStore = new KeyStore(store);
     const tipsStore = new L2TipsKVStore(store, 'pxe');
@@ -138,7 +141,7 @@ export class PXE {
       node,
       syncDataProvider,
       noteDataProvider,
-      taggingDataProvider,
+      recipientTaggingDataProvider,
       tipsStore,
       config,
       loggerOrSuffix,
@@ -154,7 +157,8 @@ export class PXE {
       noteDataProvider,
       capsuleDataProvider,
       syncDataProvider,
-      taggingDataProvider,
+      senderTaggingDataProvider,
+      recipientTaggingDataProvider,
       addressDataProvider,
       privateEventDataProvider,
       simulator,
@@ -183,7 +187,8 @@ export class PXE {
       this.noteDataProvider,
       this.capsuleDataProvider,
       this.syncDataProvider,
-      this.taggingDataProvider,
+      this.senderTaggingDataProvider,
+      this.recipientTaggingDataProvider,
       this.addressDataProvider,
       this.privateEventDataProvider,
       this.log,
@@ -494,7 +499,7 @@ export class PXE {
       return address;
     }
 
-    const wasAdded = await this.taggingDataProvider.addSenderAddress(address);
+    const wasAdded = await this.recipientTaggingDataProvider.addSenderAddress(address);
 
     if (wasAdded) {
       this.log.info(`Added sender:\n ${address.toString()}`);
@@ -510,14 +515,14 @@ export class PXE {
    * @returns An array of the senders on this PXE.
    */
   public getSenders(): Promise<AztecAddress[]> {
-    return this.taggingDataProvider.getSenderAddresses();
+    return this.recipientTaggingDataProvider.getSenderAddresses();
   }
 
   /**
    * Removes a sender in the address book.
    */
   public async removeSender(address: AztecAddress): Promise<void> {
-    const wasRemoved = await this.taggingDataProvider.removeSenderAddress(address);
+    const wasRemoved = await this.recipientTaggingDataProvider.removeSenderAddress(address);
 
     if (wasRemoved) {
       this.log.info(`Removed sender:\n ${address.toString()}`);
@@ -753,7 +758,7 @@ export class PXE {
           // First we check that for any secret the highest used index in tx is not further than window length from
           // the highest finalized index.
           for (const preTag of preTagsUsedInTheTx) {
-            const finalizedIndex = (await this.taggingDataProvider.getHighestFinalizedIndex(preTag.secret)) ?? 0;
+            const finalizedIndex = (await this.senderTaggingDataProvider.getHighestFinalizedIndex(preTag.secret)) ?? 0;
             if (preTag.index > finalizedIndex + SENDER_TAGGING_INDEXES_SYNC_WINDOW_LEN) {
               throw new Error(
                 `Highest used index ${preTag.index} is further than window length from the highest finalized index ${finalizedIndex}. Tagging window length ${SENDER_TAGGING_INDEXES_SYNC_WINDOW_LEN} is configured too low. Contact the Aztec team to increase it!`,
@@ -764,7 +769,7 @@ export class PXE {
           // TODO(benesjan): The following is an expensive operation. Figure out a way to avoid it.
           const txHash = (await txProvingResult.toTx()).txHash;
 
-          await this.taggingDataProvider.updatePendingIndexesAsSender(preTagsUsedInTheTx, txHash);
+          await this.senderTaggingDataProvider.updatePendingIndexes(preTagsUsedInTheTx, txHash);
           this.log.debug(`Stored used pre tags as sender for the tx`, {
             preTagsUsedInTheTx,
           });

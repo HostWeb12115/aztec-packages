@@ -3,7 +3,7 @@ import type { AztecNode } from '@aztec/stdlib/interfaces/server';
 import type { DirectionalAppTaggingSecret, PreTag, TxScopedL2Log } from '@aztec/stdlib/logs';
 import { TxHash, TxStatus } from '@aztec/stdlib/tx';
 
-import type { TaggingDataProvider } from '../storage/tagging_data_provider/tagging_data_provider.js';
+import type { SenderTaggingDataProvider } from '../storage/tagging_data_provider/sender_tagging_data_provider.js';
 import { SiloedTag } from './siloed_tag.js';
 import { Tag } from './tag.js';
 
@@ -32,7 +32,7 @@ export async function syncSenderTaggingIndexes(
   secret: DirectionalAppTaggingSecret,
   app: AztecAddress,
   aztecNode: AztecNode,
-  taggingDataProvider: TaggingDataProvider,
+  taggingDataProvider: SenderTaggingDataProvider,
 ): Promise<void> {
   const finalizedIndex = await taggingDataProvider.getHighestFinalizedIndex(secret);
 
@@ -48,11 +48,7 @@ export async function syncSenderTaggingIndexes(
     await loadAndStoreNewTaggingIndexes(secret, app, start, end, aztecNode, taggingDataProvider);
 
     // We get all the indexes for a given window from the store.
-    const pendingTxHashes = await taggingDataProvider.getTxHashesOfPendingIndexesForRangeForSecretAsSender(
-      secret,
-      start,
-      end,
-    );
+    const pendingTxHashes = await taggingDataProvider.getTxHashesOfPendingIndexesForRangeForSecret(secret, start, end);
     if (pendingTxHashes.length === 0) {
       break;
     }
@@ -115,7 +111,7 @@ async function loadAndStoreNewTaggingIndexes(
   start: number,
   end: number,
   aztecNode: AztecNode,
-  taggingDataProvider: TaggingDataProvider,
+  taggingDataProvider: SenderTaggingDataProvider,
 ) {
   // We compute the tags for the current window of indexes
   const preTagsForWindow: PreTag[] = Array(end - start + 1)
@@ -146,7 +142,7 @@ async function loadAndStoreNewTaggingIndexes(
   // Now we iterate over the map, reconstruct the preTags and tx hash and store them in the db.
   for (const [txHashStr, highestIndex] of highestIndexMap.entries()) {
     const txHash = TxHash.fromString(txHashStr);
-    await taggingDataProvider.updatePendingIndexesAsSender([{ secret, index: highestIndex }], txHash);
+    await taggingDataProvider.updatePendingIndexes([{ secret, index: highestIndex }], txHash);
   }
 }
 
