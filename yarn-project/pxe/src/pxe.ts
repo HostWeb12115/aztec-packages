@@ -77,7 +77,7 @@ import { PrivateEventDataProvider } from './storage/private_event_data_provider/
 import { SyncDataProvider } from './storage/sync_data_provider/sync_data_provider.js';
 import { TaggingDataProvider } from './storage/tagging_data_provider/tagging_data_provider.js';
 import { Synchronizer } from './synchronizer/index.js';
-import { WINDOW_SIZE as SENDER_TAGGING_INDEXES_SYNC_WINDOW_SIZE } from './tagging/sync_sender_tagging_indexes.js';
+import { WINDOW_LEN as SENDER_TAGGING_INDEXES_SYNC_WINDOW_LEN } from './tagging/sync_sender_tagging_indexes.js';
 
 /**
  * Private eXecution Environment (PXE) is a library used by wallets to simulate private phase of transactions and to
@@ -754,9 +754,9 @@ export class PXE {
           // the highest finalized index.
           for (const preTag of preTagsUsedInTheTx) {
             const finalizedIndex = (await this.taggingDataProvider.getHighestFinalizedIndex(preTag.secret)) ?? 0;
-            if (preTag.index > finalizedIndex + SENDER_TAGGING_INDEXES_SYNC_WINDOW_SIZE) {
+            if (preTag.index > finalizedIndex + SENDER_TAGGING_INDEXES_SYNC_WINDOW_LEN) {
               throw new Error(
-                `Highest used index ${preTag.index} is further than window length from the highest finalized index ${finalizedIndex}. Tagging window length ${SENDER_TAGGING_INDEXES_SYNC_WINDOW_SIZE} is configured too low. Contact the Aztec team to increase it!`,
+                `Highest used index ${preTag.index} is further than window length from the highest finalized index ${finalizedIndex}. Tagging window length ${SENDER_TAGGING_INDEXES_SYNC_WINDOW_LEN} is configured too low. Contact the Aztec team to increase it!`,
               );
             }
           }

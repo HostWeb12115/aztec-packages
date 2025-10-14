@@ -8,19 +8,30 @@ import { SiloedTag } from './siloed_tag.js';
 import { Tag } from './tag.js';
 
 // This window has to be larger than the largest expected number of logs emitted in a tx for a given directional app
-// tagging secret. If we get more logs than this window size, an error is thrown in `PXE::proveTx` function.
-export const WINDOW_SIZE = 30;
+// tagging secret. If we get more logs than this window length, an error is thrown in `PXE::proveTx` function.
+export const WINDOW_LEN = 30;
 
+/**
+ * Syncs the highest finalized tagging index and pending tagging indexes for a given secret.
+ * @param secret - The secret that's unique for (sender, recipient, contract) tuple while the direction of
+ * sender -> recipient matters.
+ * @param app - The address of the contract that the logs are tagged for. Needs to be provided because we perform
+ * second round of siloing in this function which is necessary because kernels do it as well (they silo first field
+ * of the private log which corresponds to the tag).
+ * @remarks When syncing the indexes as sender we don't care about the log contents - we only care about the highest
+ * pending and highest finalized indexes as that guides the next index choice when sending a log. The next index choice
+ * is simply the highest pending index plus one (or finalized if pending is undefined).
+ */
 export async function syncSenderTaggingIndexes(
   secret: DirectionalAppTaggingSecret,
-  contractAddress: AztecAddress,
+  app: AztecAddress,
   aztecNode: AztecNode,
   taggingDataProvider: TaggingDataProvider,
 ): Promise<void> {
   const finalizedIndex = await taggingDataProvider.getHighestFinalizedIndex(secret);
 
   let start = finalizedIndex === undefined ? 0 : finalizedIndex + 1;
-  let end = start + WINDOW_SIZE;
+  let end = start + WINDOW_LEN;
 
   let previousFinalizedIndex = finalizedIndex;
   let newFinalizedIndex = undefined;
@@ -28,7 +39,7 @@ export async function syncSenderTaggingIndexes(
   while (true) {
     // Load and store indexes for the current window. These indexes may already exist in the database if txs using
     // them were previously sent from this PXE. Any duplicates are handled by the tagging data provider.
-    await loadAndStoreNewTaggingIndexes(secret, contractAddress, start, end, aztecNode, taggingDataProvider);
+    await loadAndStoreNewTaggingIndexes(secret, app, start, end, aztecNode, taggingDataProvider);
 
     // We get all the indexes for a given window from the store.
     const pendingTxHashes = await taggingDataProvider.getTxHashesOfPendingIndexesForRangeForSecretAsSender(
@@ -83,7 +94,7 @@ export async function syncSenderTaggingIndexes(
       //    New window:                                             [21, 22, 23]
 
       const previousEnd = end;
-      end = newFinalizedIndex! + 1 + WINDOW_SIZE;
+      end = newFinalizedIndex! + 1 + WINDOW_LEN;
       start = previousEnd;
       previousFinalizedIndex = newFinalizedIndex;
     } else {
@@ -94,7 +105,7 @@ export async function syncSenderTaggingIndexes(
 
 async function loadAndStoreNewTaggingIndexes(
   secret: DirectionalAppTaggingSecret,
-  contractAddress: AztecAddress,
+  app: AztecAddress,
   start: number,
   end: number,
   aztecNode: AztecNode,
@@ -105,7 +116,7 @@ async function loadAndStoreNewTaggingIndexes(
     .fill(0)
     .map((_, i) => ({ secret, index: start + i }));
   const siloedTagsForWindow = await Promise.all(
-    preTagsForWindow.map(async preTag => SiloedTag.compute(await Tag.compute(preTag), contractAddress)),
+    preTagsForWindow.map(async preTag => SiloedTag.compute(await Tag.compute(preTag), app)),
   );
 
   const possibleLogs = await getPrivateLogsByTags(siloedTagsForWindow, aztecNode);

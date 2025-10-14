@@ -9,7 +9,7 @@ import { type MockProxy, mock } from 'jest-mock-extended';
 
 import { TaggingDataProvider } from '../storage/tagging_data_provider/tagging_data_provider.js';
 import { DirectionalAppTaggingSecret, SiloedTag, Tag } from './index.js';
-import { WINDOW_SIZE, syncSenderTaggingIndexes } from './sync_sender_tagging_indexes.js';
+import { WINDOW_LEN, syncSenderTaggingIndexes } from './sync_sender_tagging_indexes.js';
 
 describe('syncSenderTaggingIndexes', () => {
   // Contract address and secret to be used on the input of the syncSenderTaggingIndexes function.
@@ -127,7 +127,7 @@ describe('syncSenderTaggingIndexes', () => {
       // Move finalized block into the future
       const newFinalizedBlockNumber = finalizedBlockNumberStep1 + 5;
       const newHighestFinalizedIndex = finalizedIndexStep1 + 4;
-      const newHighestUsedIndex = newHighestFinalizedIndex + WINDOW_SIZE;
+      const newHighestUsedIndex = newHighestFinalizedIndex + WINDOW_LEN;
 
       // Create tx hashes for new logs
       const newHighestFinalizedTxHash = TxHash.random();
