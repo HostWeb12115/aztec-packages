@@ -12,9 +12,10 @@ import { Tag } from './tag.js';
 // This is set to a larger value than MAX_PRIVATE_LOGS_PER_TX (currently 32) because there could be more than
 // MAX_PRIVATE_LOGS_PER_TX indexes consumed in case the logs are squashed. This happens when the log contains a note
 // and the note is nullified in the same tx.
-// Note: Set it to 100 because `e2e_pending_note_hashes_contract` test hit 95 indexes emitted. I (benesjan) think this
+// Note: Set it to 95 because `e2e_pending_note_hashes_contract` test hit 95 indexes emitted and 100 makes
+// `docs_examples.test.ts` fail as our JSON RPC doesn't seem to allow array with length 100. I (benesjan) think this
 // window length should be fine.
-export const WINDOW_LEN = 100;
+export const WINDOW_LEN = 95;
 
 /**
  * Syncs the highest finalized tagging index and pending tagging indexes for a given secret.
