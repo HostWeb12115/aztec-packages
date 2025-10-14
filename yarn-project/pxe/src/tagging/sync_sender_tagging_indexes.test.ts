@@ -56,7 +56,8 @@ describe('syncSenderTaggingIndexes', () => {
     const finalizedIndexStep1 = 3;
     const finalizedBlockNumberStep1 = 15;
 
-    let pendingTxHash: TxHash;
+    const pendingTxHashStep2 = TxHash.random();
+    const pendingIndexStep2 = 5;
 
     beforeAll(async () => {
       await setUp();
@@ -95,17 +96,12 @@ describe('syncSenderTaggingIndexes', () => {
     });
 
     it('step 2: pending log is synced', async () => {
-      pendingTxHash = TxHash.random();
-
-      const pendingIndex = 5;
-
-      // Create a log with tag index 5
-      const index5Tag = await computeSiloedTagForIndex(pendingIndex);
+      const pendingTag = await computeSiloedTagForIndex(pendingIndexStep2);
 
       aztecNode.getLogsByTags.mockImplementation((tags: Fr[]) => {
-        // Return empty arrays for all tags except the one at index 5
+        // Return empty arrays for all tags except the one at the pending index
         return Promise.resolve(
-          tags.map((tag: Fr) => (tag.equals(index5Tag.value) ? [makeLog(pendingTxHash, index5Tag.value)] : [])),
+          tags.map((tag: Fr) => (tag.equals(pendingTag.value) ? [makeLog(pendingTxHashStep2, pendingTag.value)] : [])),
         );
       });
 
@@ -124,35 +120,34 @@ describe('syncSenderTaggingIndexes', () => {
       // Verify the highest finalized index was not updated
       expect(await taggingDataProvider.getHighestFinalizedIndex(secret)).toBe(finalizedIndexStep1);
       // Verify the highest used index was updated to the pending index
-      expect(await taggingDataProvider.getHighestUsedIndexAsSender(secret)).toBe(pendingIndex);
+      expect(await taggingDataProvider.getHighestUsedIndexAsSender(secret)).toBe(pendingIndexStep2);
     });
 
     it('step 3: syncs logs across 2 windows', async () => {
       // Move finalized block into the future
       const newFinalizedBlockNumber = finalizedBlockNumberStep1 + 5;
-
-      const newHighestFinalizedIndex = 7;
+      const newHighestFinalizedIndex = finalizedIndexStep1 + 4;
       const newHighestUsedIndex = newHighestFinalizedIndex + WINDOW_SIZE;
 
       // Create tx hashes for new logs
-      const index7TxHash = TxHash.random();
-      const index36TxHash = TxHash.random();
+      const newHighestFinalizedTxHash = TxHash.random();
+      const newHighestUsedTxHash = TxHash.random();
 
       // Create tags for multiple indices across 2 windows
-      const index5Tag = await computeSiloedTagForIndex(5); // Previously pending, now finalized
-      const index7Tag = await computeSiloedTagForIndex(newHighestFinalizedIndex); // New finalized log
-      const index36Tag = await computeSiloedTagForIndex(newHighestUsedIndex); // New pending log
+      const nowFinalizedTag = await computeSiloedTagForIndex(pendingIndexStep2); // Previously pending, now finalized
+      const newHighestFinalizedTag = await computeSiloedTagForIndex(newHighestFinalizedIndex); // New finalized log
+      const newHighestUsedTag = await computeSiloedTagForIndex(newHighestUsedIndex); // New pending log
 
       // Mock getLogsByTags to return logs for multiple indices
       aztecNode.getLogsByTags.mockImplementation((tags: Fr[]) => {
         return Promise.resolve(
           tags.map((tag: Fr) => {
-            if (tag.equals(index5Tag.value)) {
-              return [makeLog(pendingTxHash, index5Tag.value)];
-            } else if (tag.equals(index7Tag.value)) {
-              return [makeLog(index7TxHash, index7Tag.value)];
-            } else if (tag.equals(index36Tag.value)) {
-              return [makeLog(index36TxHash, index36Tag.value)];
+            if (tag.equals(nowFinalizedTag.value)) {
+              return [makeLog(pendingTxHashStep2, nowFinalizedTag.value)];
+            } else if (tag.equals(newHighestFinalizedTag.value)) {
+              return [makeLog(newHighestFinalizedTxHash, newHighestFinalizedTag.value)];
+            } else if (tag.equals(newHighestUsedTag.value)) {
+              return [makeLog(newHighestUsedTxHash, newHighestUsedTag.value)];
             }
             return [];
           }),
@@ -161,20 +156,20 @@ describe('syncSenderTaggingIndexes', () => {
 
       // Mock getTxReceipt to return appropriate statuses
       aztecNode.getTxReceipt.mockImplementation((hash: TxHash) => {
-        if (hash.equals(pendingTxHash)) {
-          // The previously pending tx (index 5) is now finalized
+        if (hash.equals(pendingTxHashStep2)) {
+          // The previously pending tx (index pendingIndexStep2) is now finalized
           return {
             status: TxStatus.SUCCESS,
             blockNumber: newFinalizedBlockNumber - 3,
           } as any;
-        } else if (hash.equals(index7TxHash)) {
-          // This tx (index 7) is finalized
+        } else if (hash.equals(newHighestFinalizedTxHash)) {
+          // This tx (index newHighestFinalizedIndex) is finalized
           return {
             status: TxStatus.SUCCESS,
             blockNumber: newFinalizedBlockNumber - 2,
           } as any;
-        } else if (hash.equals(index36TxHash)) {
-          // This tx (index 36) is pending
+        } else if (hash.equals(newHighestUsedTxHash)) {
+          // This tx (index newHighestUsedIndex) is pending
           return {
             status: TxStatus.SUCCESS,
             blockNumber: newFinalizedBlockNumber + 2,
