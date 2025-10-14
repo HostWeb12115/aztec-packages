@@ -54,6 +54,8 @@ describe('syncSenderTaggingIndexes', () => {
   // These tests need to be run together in sequence.
   describe('sequential tests', () => {
     const finalizedIndexStep1 = 3;
+    const finalizedBlockNumberStep1 = 15;
+
     let pendingTxHash: TxHash;
 
     beforeAll(async () => {
@@ -61,8 +63,6 @@ describe('syncSenderTaggingIndexes', () => {
     });
 
     it('step 1: highest finalized index is updated', async () => {
-      const finalizedBlockNumber = 15;
-
       // Create a log with tag index 3
       const index3Tag = await computeSiloedTagForIndex(finalizedIndexStep1);
 
@@ -77,12 +77,12 @@ describe('syncSenderTaggingIndexes', () => {
       // the finalized block)
       aztecNode.getTxReceipt.mockResolvedValue({
         status: TxStatus.SUCCESS,
-        blockNumber: finalizedBlockNumber - 1,
+        blockNumber: finalizedBlockNumberStep1 - 1,
       } as any);
 
       // Mock getL2Tips to return a finalized block number >= the tx block number
       aztecNode.getL2Tips.mockResolvedValue({
-        finalized: { number: finalizedBlockNumber },
+        finalized: { number: finalizedBlockNumberStep1 },
       } as any);
 
       await syncSenderTaggingIndexes(secret, contractAddress, aztecNode, taggingDataProvider);
@@ -97,7 +97,6 @@ describe('syncSenderTaggingIndexes', () => {
     it('step 2: pending log is synced', async () => {
       pendingTxHash = TxHash.random();
 
-      const finalizedBlockNumber = 15;
       const pendingIndex = 5;
 
       // Create a log with tag index 5
@@ -113,11 +112,11 @@ describe('syncSenderTaggingIndexes', () => {
       // Mock getTxReceipt to return a successful but still pending tx
       aztecNode.getTxReceipt.mockResolvedValue({
         status: TxStatus.SUCCESS,
-        blockNumber: finalizedBlockNumber + 1,
+        blockNumber: finalizedBlockNumberStep1 + 1,
       } as any);
 
       aztecNode.getL2Tips.mockResolvedValue({
-        finalized: { number: finalizedBlockNumber },
+        finalized: { number: finalizedBlockNumberStep1 },
       } as any);
 
       await syncSenderTaggingIndexes(secret, contractAddress, aztecNode, taggingDataProvider);
@@ -130,7 +129,7 @@ describe('syncSenderTaggingIndexes', () => {
 
     it('step 3: syncs logs across 2 windows', async () => {
       // Move finalized block into the future
-      const newFinalizedBlockNumber = 20;
+      const newFinalizedBlockNumber = finalizedBlockNumberStep1 + 5;
 
       const newHighestFinalizedIndex = 7;
       const newHighestUsedIndex = newHighestFinalizedIndex + WINDOW_SIZE;
