@@ -4,9 +4,12 @@ import type { DirectionalAppTaggingSecret, PreTag, TxScopedL2Log } from '@aztec/
 import { TxHash, TxStatus } from '@aztec/stdlib/tx';
 
 import type { TaggingDataProvider } from '../storage/tagging_data_provider/tagging_data_provider.js';
-import { WINDOW_HALF_SIZE } from './constants.js';
 import { SiloedTag } from './siloed_tag.js';
 import { Tag } from './tag.js';
+
+// This window has to be larger than the largest expected number of logs emitted in a tx for a given directional app
+// tagging secret. If we get more logs than this window size, an error is thrown in `PXE::proveTx` function.
+export const WINDOW_SIZE = 30;
 
 export async function syncSenderTaggingIndexes(
   secret: DirectionalAppTaggingSecret,
@@ -17,7 +20,7 @@ export async function syncSenderTaggingIndexes(
   const finalizedIndex = await taggingDataProvider.getHighestFinalizedIndex(secret);
 
   let start = finalizedIndex === undefined ? 0 : finalizedIndex + 1;
-  let end = start + WINDOW_HALF_SIZE;
+  let end = start + WINDOW_SIZE;
 
   let previousFinalizedIndex = finalizedIndex;
   let newFinalizedIndex = undefined;
@@ -80,7 +83,7 @@ export async function syncSenderTaggingIndexes(
       //    New window:                                             [21, 22, 23]
 
       const previousEnd = end;
-      end = newFinalizedIndex! + 1 + WINDOW_HALF_SIZE;
+      end = newFinalizedIndex! + 1 + WINDOW_SIZE;
       start = previousEnd;
       previousFinalizedIndex = newFinalizedIndex;
     } else {

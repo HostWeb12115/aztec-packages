@@ -9,7 +9,7 @@ import { type MockProxy, mock } from 'jest-mock-extended';
 
 import { TaggingDataProvider } from '../storage/tagging_data_provider/tagging_data_provider.js';
 import { DirectionalAppTaggingSecret, SiloedTag, Tag } from './index.js';
-import { syncSenderTaggingIndexes } from './sync_sender_tagging_indexes.js';
+import { WINDOW_SIZE, syncSenderTaggingIndexes } from './sync_sender_tagging_indexes.js';
 
 describe('syncSenderTaggingIndexes', () => {
   // Contract address and secret to be used on the input of the syncSenderTaggingIndexes function.
@@ -133,16 +133,16 @@ describe('syncSenderTaggingIndexes', () => {
       const newFinalizedBlockNumber = 20;
 
       const newHighestFinalizedIndex = 7;
-      const newHighestUsedIndex = 16;
+      const newHighestUsedIndex = newHighestFinalizedIndex + WINDOW_SIZE;
 
       // Create tx hashes for new logs
       const index7TxHash = TxHash.random();
-      const index16TxHash = TxHash.random();
+      const index36TxHash = TxHash.random();
 
       // Create tags for multiple indices across 2 windows
       const index5Tag = await computeSiloedTagForIndex(5); // Previously pending, now finalized
       const index7Tag = await computeSiloedTagForIndex(newHighestFinalizedIndex); // New finalized log
-      const index16Tag = await computeSiloedTagForIndex(newHighestUsedIndex); // New pending log
+      const index36Tag = await computeSiloedTagForIndex(newHighestUsedIndex); // New pending log
 
       // Mock getLogsByTags to return logs for multiple indices
       aztecNode.getLogsByTags.mockImplementation((tags: Fr[]) => {
@@ -152,8 +152,8 @@ describe('syncSenderTaggingIndexes', () => {
               return [makeLog(pendingTxHash, index5Tag.value)];
             } else if (tag.equals(index7Tag.value)) {
               return [makeLog(index7TxHash, index7Tag.value)];
-            } else if (tag.equals(index16Tag.value)) {
-              return [makeLog(index16TxHash, index16Tag.value)];
+            } else if (tag.equals(index36Tag.value)) {
+              return [makeLog(index36TxHash, index36Tag.value)];
             }
             return [];
           }),
@@ -174,8 +174,8 @@ describe('syncSenderTaggingIndexes', () => {
             status: TxStatus.SUCCESS,
             blockNumber: newFinalizedBlockNumber - 2,
           } as any;
-        } else if (hash.equals(index16TxHash)) {
-          // This tx (index 16) is pending
+        } else if (hash.equals(index36TxHash)) {
+          // This tx (index 36) is pending
           return {
             status: TxStatus.SUCCESS,
             blockNumber: newFinalizedBlockNumber + 2,
