@@ -1,5 +1,4 @@
 import { Fr } from '@aztec/foundation/fields';
-import { KeyStore } from '@aztec/key-store';
 import { openTmpStore } from '@aztec/kv-store/lmdb-v2';
 import { AztecAddress } from '@aztec/stdlib/aztec-address';
 import type { AztecNode } from '@aztec/stdlib/interfaces/client';
@@ -8,33 +7,17 @@ import { TxHash, TxStatus } from '@aztec/stdlib/tx';
 
 import { type MockProxy, mock } from 'jest-mock-extended';
 
-import { PXEOracleInterface } from '../contract_function_simulator/pxe_oracle_interface.js';
-import { AddressDataProvider } from '../storage/address_data_provider/address_data_provider.js';
-import { CapsuleDataProvider } from '../storage/capsule_data_provider/capsule_data_provider.js';
-import { ContractDataProvider } from '../storage/contract_data_provider/contract_data_provider.js';
-import { NoteDataProvider } from '../storage/note_data_provider/note_data_provider.js';
-import { PrivateEventDataProvider } from '../storage/private_event_data_provider/private_event_data_provider.js';
-import { SyncDataProvider } from '../storage/sync_data_provider/sync_data_provider.js';
 import { TaggingDataProvider } from '../storage/tagging_data_provider/tagging_data_provider.js';
-import { DirectionalAppTaggingSecret, SiloedTag, Tag } from '../tagging/index.js';
+import { DirectionalAppTaggingSecret, SiloedTag, Tag } from './index.js';
+import { syncSenderTaggingIndexes } from './sync_sender_tagging_indexes.js';
 
-describe('TaggingSync', () => {
-  let aztecNode: MockProxy<AztecNode>;
-
-  let addressDataProvider: AddressDataProvider;
-  let privateEventDataProvider: PrivateEventDataProvider;
-  let contractDataProvider: ContractDataProvider;
-  let noteDataProvider: NoteDataProvider;
-  let syncDataProvider: SyncDataProvider;
-  let taggingDataProvider: TaggingDataProvider;
-  let capsuleDataProvider: CapsuleDataProvider;
-  let keyStore: KeyStore;
-
-  let pxeOracleInterface: PXEOracleInterface;
-
-  // Contract address and secret to be used on the input of the syncTaggedLogsAsSender function.
-  let contractAddress: AztecAddress;
+describe('syncSenderTaggingIndexes', () => {
+  // Contract address and secret to be used on the input of the syncSenderTaggingIndexes function.
   let secret: DirectionalAppTaggingSecret;
+  let contractAddress: AztecAddress;
+
+  let aztecNode: MockProxy<AztecNode>;
+  let taggingDataProvider: TaggingDataProvider;
 
   async function computeSiloedTagForIndex(index: number) {
     const tag = await Tag.compute({ secret, index });
@@ -46,31 +29,11 @@ describe('TaggingSync', () => {
   }
 
   async function setUp() {
-    const store = await openTmpStore('test');
-    aztecNode = mock<AztecNode>();
-    contractDataProvider = new ContractDataProvider(store);
-
-    addressDataProvider = new AddressDataProvider(store);
-    privateEventDataProvider = new PrivateEventDataProvider(store);
-    noteDataProvider = await NoteDataProvider.create(store);
-    syncDataProvider = new SyncDataProvider(store);
-    taggingDataProvider = new TaggingDataProvider(store);
-    capsuleDataProvider = new CapsuleDataProvider(store);
-    keyStore = new KeyStore(store);
-    pxeOracleInterface = new PXEOracleInterface(
-      aztecNode,
-      keyStore,
-      contractDataProvider,
-      noteDataProvider,
-      capsuleDataProvider,
-      syncDataProvider,
-      taggingDataProvider,
-      addressDataProvider,
-      privateEventDataProvider,
-    );
-
-    contractAddress = await AztecAddress.random();
     secret = DirectionalAppTaggingSecret.fromString(Fr.random().toString());
+    contractAddress = await AztecAddress.random();
+
+    aztecNode = mock<AztecNode>();
+    taggingDataProvider = new TaggingDataProvider(await openTmpStore('test'));
   }
 
   it('no new logs found for a given secret', async () => {
@@ -81,7 +44,7 @@ describe('TaggingSync', () => {
       return Promise.resolve(tags.map((_tag: Fr) => []));
     });
 
-    await pxeOracleInterface.syncTaggedLogsAsSender(secret, contractAddress);
+    await syncSenderTaggingIndexes(secret, contractAddress, aztecNode, taggingDataProvider);
 
     // Highest used and finalized indexes should stay undefined
     expect(await taggingDataProvider.getHighestUsedIndexAsSender(secret)).toBeUndefined();
@@ -122,7 +85,7 @@ describe('TaggingSync', () => {
         finalized: { number: finalizedBlockNumber },
       } as any);
 
-      await pxeOracleInterface.syncTaggedLogsAsSender(secret, contractAddress);
+      await syncSenderTaggingIndexes(secret, contractAddress, aztecNode, taggingDataProvider);
 
       // Verify the highest finalized index is updated to 3
       expect(await taggingDataProvider.getHighestFinalizedIndex(secret)).toBe(finalizedIndexStep1);
@@ -157,7 +120,7 @@ describe('TaggingSync', () => {
         finalized: { number: finalizedBlockNumber },
       } as any);
 
-      await pxeOracleInterface.syncTaggedLogsAsSender(secret, contractAddress);
+      await syncSenderTaggingIndexes(secret, contractAddress, aztecNode, taggingDataProvider);
 
       // Verify the highest finalized index was not updated
       expect(await taggingDataProvider.getHighestFinalizedIndex(secret)).toBe(finalizedIndexStep1);
@@ -227,7 +190,7 @@ describe('TaggingSync', () => {
         finalized: { number: newFinalizedBlockNumber },
       } as any);
 
-      await pxeOracleInterface.syncTaggedLogsAsSender(secret, contractAddress);
+      await syncSenderTaggingIndexes(secret, contractAddress, aztecNode, taggingDataProvider);
 
       expect(await taggingDataProvider.getHighestFinalizedIndex(secret)).toBe(newHighestFinalizedIndex);
       expect(await taggingDataProvider.getHighestUsedIndexAsSender(secret)).toBe(newHighestUsedIndex);
@@ -281,7 +244,7 @@ describe('TaggingSync', () => {
     } as any);
 
     // Sync tagged logs
-    await pxeOracleInterface.syncTaggedLogsAsSender(secret, contractAddress);
+    await syncSenderTaggingIndexes(secret, contractAddress, aztecNode, taggingDataProvider);
 
     // Verify that both highest finalized and highest used were set to the pending and finalized index
     expect(await taggingDataProvider.getHighestFinalizedIndex(secret)).toBe(pendingAndFinalizedIndex);
