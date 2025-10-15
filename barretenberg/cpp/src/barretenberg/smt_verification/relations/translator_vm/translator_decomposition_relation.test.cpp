@@ -1,106 +1,27 @@
 #include <gtest/gtest.h>
 
-#include "barretenberg/numeric/uint256/uint256.hpp"
-#include "barretenberg/relations/translator_vm/translator_decomposition_relation.hpp"
-#include "barretenberg/smt_verification/relations/relation_operation_recorder.hpp"
-#include "barretenberg/smt_verification/relations/translator_vm/translator_relations.hpp"
-#include "barretenberg/smt_verification/relations/translator_vm/translator_relations_recorder.hpp"
-#include "barretenberg/smt_verification/solver/solver.hpp"
-#include "barretenberg/smt_verification/terms/term.hpp"
-#include "barretenberg/translator_vm/translator_flavor.hpp"
-#include <array>
+#include "translator_relation_test_helpers.hpp"
+#include "translator_relations.hpp"
+#include "translator_relations_recorder.hpp"
 #include <iomanip>
 #include <set>
 #include <sstream>
 
 using namespace bb;
+using namespace translator_relation_test_helpers;
 
-/**
- * @brief Helper function to convert decimal string to uint256_t
- */
-uint256_t uint256_from_decimal_string(const std::string& dec_str)
-{
-    uint256_t result = 0;
-    uint256_t base = 10;
-    for (char c : dec_str) {
-        if (c < '0' || c > '9') {
-            throw std::runtime_error("Invalid decimal string");
-        }
-        result = result * base + uint256_t(static_cast<uint64_t>(c - '0'));
-    }
-    return result;
-}
-
-/**
- * @brief Helper function to convert uint256_t to decimal string
- */
-std::string uint256_to_decimal_string(const uint256_t& value)
-{
-    if (value == 0) {
-        return "0";
-    }
-
-    std::string result;
-    uint256_t temp = value;
-    uint256_t base = 10;
-
-    while (temp > 0) {
-        uint256_t digit = temp % base;
-        result = char('0' + static_cast<uint64_t>(digit.data[0])) + result;
-        temp = temp / base;
-    }
-
-    return result;
-}
-
-/**
- * @brief Decomposition mapping for translator VM limbs
- *
- * This structure documents which relation index corresponds to which limb decomposition,
- * and which range constraints are used.
- */
 struct LimbDecomposition {
-    std::string limb_name;             // The limb being decomposed (e.g., "p_x_low_limbs")
-    size_t relation_index;             // The relation index (0-47)
-    std::vector<std::string> rc_names; // Range constraint names (in order: rc_0, rc_1, ..., rc_tail)
-    size_t num_microlimbs;             // Number of 14-bit microlimbs (usually 5, but 4 for top 50-bit limbs)
-    std::string tail_relation_desc;    // Description of tail constraint relation
-    size_t tail_relation_index;        // The relation index for tail constraint
+    std::string limb_name;
+    size_t relation_index;
+    std::vector<std::string> rc_names;
+    size_t num_microlimbs;
+    std::string tail_relation_desc;
+    size_t tail_relation_index;
 };
 
-// Documented maximum bit lengths per limb used for regression checks.
-static const std::unordered_map<std::string, size_t> kExpectedLimbBitLengths = {
-    { "accumulators_binary_limbs_0", 68 },
-    { "accumulators_binary_limbs_1", 68 },
-    { "accumulators_binary_limbs_2", 68 },
-    { "accumulators_binary_limbs_3", 50 },
-    { "relation_wide_limbs", 80 },
-    { "relation_wide_limbs_shift", 80 },
-    { "z_low_limbs", 68 },
-    { "z_low_limbs_shift", 68 },
-    { "z_high_limbs", 60 },
-    { "z_high_limbs_shift", 60 },
-    { "p_y_low_limbs", 68 },
-    { "p_y_low_limbs_shift", 68 },
-    { "p_y_high_limbs", 68 },
-    { "p_y_high_limbs_shift", 50 },
-    { "p_x_low_limbs", 68 },
-    { "p_x_low_limbs_shift", 68 },
-    { "p_x_high_limbs", 68 },
-    { "p_x_high_limbs_shift", 50 },
-    { "quotient_low_binary_limbs", 68 },
-    { "quotient_low_binary_limbs_shift", 68 },
-    { "quotient_high_binary_limbs", 68 },
-    { "quotient_high_binary_limbs_shift", 52 }
-};
-
-/**
- * @brief Get decomposition mapping for all translator VM limbs
- */
 std::vector<LimbDecomposition> get_translator_decomposition_map()
 {
     return {
-        // Accumulator decompositions (relations 0-3)
         { "accumulators_binary_limbs_0",
           0,
           { "accumulator_low_limbs_range_constraint_0",
@@ -365,9 +286,6 @@ std::vector<LimbDecomposition> get_translator_decomposition_map()
     };
 }
 
-/**
- * @brief Find limb and its range constraints by decomposition mapping
- */
 struct MappedLimbVariables {
     smt_terms::STerm limb_var;
     std::vector<smt_terms::STerm> rc_vars; // rc_0, rc_1, ..., rc_n
@@ -425,9 +343,6 @@ MappedLimbVariables find_mapped_limb_variables(const std::vector<smt_terms::STer
     return result;
 }
 
-/**
- * @brief Test uniqueness and maximum value for a limb decomposition
- */
 void test_limb_uniqueness_and_maximum(smt_solver::Solver& s,
                                       const smt_relation_recorder::OperationTrace& recording_trace_main,
                                       const LimbDecomposition& decomp,
@@ -495,7 +410,6 @@ void test_limb_uniqueness_and_maximum(smt_solver::Solver& s,
     out_unique = s.check() ? "NOT_UNIQUE" : "UNIQUE";
     s.pop();
 
-    // Test maximum value using binary search on the limb value
     s.push();
 
     std::vector<smt_terms::STerm> fm, vm;
@@ -504,7 +418,6 @@ void test_limb_uniqueness_and_maximum(smt_solver::Solver& s,
     smt_translator_relations::replay_translator_decomposition_relation(recording_trace_main, &s, "M", true, fm, vm, nm);
     smt_translator_relations::create_range_constraint_formulas(&s, vm, nm, "constraint", 16384);
 
-    // Constrain op and lagrange_even_in_minicircuit wires to 1
     smt_terms::STerm one_m = smt_terms::FFIConst("1", &s, 10);
     for (size_t i = 0; i < vm.size(); ++i) {
         if (nm[i] == "M_op" || nm[i].find("M_lagrange_even_in_minicircuit") != std::string::npos) {
@@ -516,17 +429,12 @@ void test_limb_uniqueness_and_maximum(smt_solver::Solver& s,
     smt_translator_relations::assert_formulas_zero(&s, { fm[decomp.relation_index], fm[decomp.tail_relation_index] });
 
     auto max_limb = find_mapped_limb_variables(vm, nm, decomp, "M");
-
-    // Search for maximum value (we know it should be a power of 2 minus one, so if it's not, we fail)
-    // Start with theoretical maximum based on limb structure (68 bits for most limbs)
     uint256_t max_found = 0;
 
-    // First, find an upper bound by trying powers of 2 (starting from 80 bits down to 1)
     for (int bits = 80; bits >= 1; bits--) {
         s.push();
         uint256_t test_val = (uint256_t(1) << static_cast<uint64_t>(bits)) - 1;
-        std::string test_str = uint256_to_decimal_string(test_val);
-        smt_terms::STerm test_term = smt_terms::FFIConst(test_str, &s, 10);
+        smt_terms::STerm test_term = smt_terms::FFIConst(to_dec_string(test_val), &s, 10);
         s.assertFormula(s.term_manager.mkTerm(
             cvc5::Kind::GEQ, { static_cast<cvc5::Term>(max_limb.limb_var), static_cast<cvc5::Term>(test_term) }));
 
@@ -538,14 +446,12 @@ void test_limb_uniqueness_and_maximum(smt_solver::Solver& s,
         s.pop();
     }
 
-    // Check that this value is indeed the maximum (skip for unconstrained limbs)
     bool is_accumulator = (decomp.relation_index <= 3);
     bool is_wide_limb = (decomp.relation_index == 20 || decomp.relation_index == 21);
     if (!is_accumulator && !is_wide_limb) {
         s.push();
         uint256_t test_val = max_found + 1;
-        std::string test_str = uint256_to_decimal_string(test_val);
-        smt_terms::STerm test_term = smt_terms::FFIConst(test_str, &s, 10);
+        smt_terms::STerm test_term = smt_terms::FFIConst(to_dec_string(test_val), &s, 10);
         s.assertFormula(s.term_manager.mkTerm(
             cvc5::Kind::GEQ, { static_cast<cvc5::Term>(max_limb.limb_var), static_cast<cvc5::Term>(test_term) }));
         ASSERT_FALSE(s.check());
@@ -553,7 +459,7 @@ void test_limb_uniqueness_and_maximum(smt_solver::Solver& s,
     }
 
     s.pop();
-    out_max = uint256_to_decimal_string(max_found);
+    out_max = to_dec_string(max_found);
 }
 
 void test_lo_hi_uniqueness_and_maximum(smt_solver::Solver& s,
@@ -657,12 +563,10 @@ void test_lo_hi_uniqueness_and_maximum(smt_solver::Solver& s,
     size_t base_idx = is_z ? 6 : (is_x ? 14 : 10);
 
     smt_terms::STerm zero = smt_terms::FFIConst("0", &s, 10);
-    smt_terms::STerm max_low = smt_terms::FFIConst(uint256_to_decimal_string(limb_max_values[base_idx + 0]), &s, 10);
-    smt_terms::STerm max_low_shift =
-        smt_terms::FFIConst(uint256_to_decimal_string(limb_max_values[base_idx + 1]), &s, 10);
-    smt_terms::STerm max_high = smt_terms::FFIConst(uint256_to_decimal_string(limb_max_values[base_idx + 2]), &s, 10);
-    smt_terms::STerm max_high_shift =
-        smt_terms::FFIConst(uint256_to_decimal_string(limb_max_values[base_idx + 3]), &s, 10);
+    smt_terms::STerm max_low = smt_terms::FFIConst(to_dec_string(limb_max_values[base_idx + 0]), &s, 10);
+    smt_terms::STerm max_low_shift = smt_terms::FFIConst(to_dec_string(limb_max_values[base_idx + 1]), &s, 10);
+    smt_terms::STerm max_high = smt_terms::FFIConst(to_dec_string(limb_max_values[base_idx + 2]), &s, 10);
+    smt_terms::STerm max_high_shift = smt_terms::FFIConst(to_dec_string(limb_max_values[base_idx + 3]), &s, 10);
 
     // V1 limb range constraints
     s.assertFormula(
@@ -815,8 +719,8 @@ void test_lo_hi_uniqueness_and_maximum(smt_solver::Solver& s,
     smt_terms::STerm m_var = is_low ? m_lo : m_hi;
 
     if (s.check()) {
-        uint256_t max_val = uint256_from_decimal_string(s.get(m_var));
-        out_max = uint256_to_decimal_string(max_val);
+        uint256_t max_val = from_dec_string(s.get(m_var));
+        out_max = to_dec_string(max_val);
     } else {
         out_max = "UNSAT";
     }
@@ -824,11 +728,10 @@ void test_lo_hi_uniqueness_and_maximum(smt_solver::Solver& s,
     s.pop();
 }
 
-TEST(TranslatorDecompositionRelation, test_translator_decompositions)
+// Verify that limb decompositions are unique and compute their maximum values
+TEST(TranslatorDecompositionRelation, limb_decompositions_are_unique_and_bounded)
 {
-
-    smt_solver::Solver s("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001",
-                         smt_solver::default_solver_config);
+    smt_solver::Solver s(BN254_MODULUS, smt_solver::default_solver_config);
 
     auto decomp_map = get_translator_decomposition_map();
 
@@ -867,19 +770,18 @@ TEST(TranslatorDecompositionRelation, test_translator_decompositions)
             std::string bitness_str = "N/A";
             std::string max_hex_str = max_value;
             if (max_value != "UNSAT") {
-                uint256_t max_val = uint256_from_decimal_string(max_value);
+                uint256_t max_val = from_dec_string(max_value);
                 uint64_t bits = max_val.get_msb() + 1;
                 bitness_str = std::to_string(bits) + " bits";
                 std::ostringstream oss;
-                oss << max_val; // uint256_t outputs in hex with 0x prefix
+                oss << max_val;
                 max_hex_str = oss.str();
-                auto expected_it = kExpectedLimbBitLengths.find(decomp.limb_name);
-                ASSERT_TRUE(expected_it != kExpectedLimbBitLengths.end())
+                auto expected_it = EXPECTED_LIMB_BIT_LENGTHS.find(decomp.limb_name);
+                ASSERT_TRUE(expected_it != EXPECTED_LIMB_BIT_LENGTHS.end())
                     << "Missing expected bit length entry for limb " << decomp.limb_name;
                 ASSERT_EQ(bits, expected_it->second) << "Unexpected bit length for limb " << decomp.limb_name;
                 max_values.push_back(max_val);
             } else {
-                // If max is UNSAT, push 0 as placeholder
                 max_values.push_back(uint256_t(0));
             }
 
@@ -895,7 +797,6 @@ TEST(TranslatorDecompositionRelation, test_translator_decompositions)
             }
         }
     }
-    // Test x_lo, x_hi, y_lo, y_hi, z1, z2 decompositions
     for (const auto& var_name : { "x_lo", "x_hi", "y_lo", "y_hi", "z1", "z2" }) {
         std::string unique_result;
         std::string max_value;
@@ -904,11 +805,11 @@ TEST(TranslatorDecompositionRelation, test_translator_decompositions)
         std::string bitness_str = "N/A";
         std::string max_hex_str = max_value;
         if (max_value != "UNSAT") {
-            uint256_t max_val = uint256_from_decimal_string(max_value);
+            uint256_t max_val = from_dec_string(max_value);
             uint64_t bits = max_val.get_msb() + 1;
             bitness_str = std::to_string(bits) + " bits";
             std::ostringstream oss;
-            oss << max_val; // uint256_t outputs in hex with 0x prefix
+            oss << max_val;
             max_hex_str = oss.str();
         }
 
