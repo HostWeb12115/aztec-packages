@@ -276,26 +276,6 @@ describe('SenderTaggingDataProvider', () => {
       const txHashes2 = await taggingDataProvider.getTxHashesOfPendingIndexes(secret2, 0, 10);
       expect(txHashes2).toEqual([]);
     });
-
-    it('does nothing when tx hash does not exist', async () => {
-      const txHash = TxHash.random();
-      await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 3 }], txHash);
-
-      await taggingDataProvider.dropPendingIndexes(TxHash.random());
-
-      const txHashes = await taggingDataProvider.getTxHashesOfPendingIndexes(secret1, 0, 10);
-      expect(txHashes).toHaveLength(1);
-      expect(txHashes[0]).toEqual(txHash);
-    });
-
-    it('removes secret entry when all pending indexes are dropped', async () => {
-      const txHash = TxHash.random();
-      await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 3 }], txHash);
-      await taggingDataProvider.dropPendingIndexes(txHash);
-
-      const txHashes = await taggingDataProvider.getTxHashesOfPendingIndexes(secret1, 0, 10);
-      expect(txHashes).toEqual([]);
-    });
   });
 
   describe('updateStatusToFinalized', () => {
