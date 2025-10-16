@@ -484,36 +484,36 @@ export class PXE {
   }
 
   /**
-   * Registers an address as a sender in the PXE.
+   * Registers a sender in the PXE.
    *
    * After registering a new sender, the PXE will sync private logs that are tagged with this sender's address.
    * Will do nothing if the address is already registered.
    *
-   * @param address - Address of the sender to register.
+   * @param sender - Address of the sender to register.
    * @returns The address of the sender.
    * TODO: It's strange that we return the address here and I (benesjan) think we should drop the return value.
    */
-  public async registerSender(address: AztecAddress): Promise<AztecAddress> {
+  public async registerSender(sender: AztecAddress): Promise<AztecAddress> {
     const accounts = await this.keyStore.getAccounts();
-    if (accounts.includes(address)) {
-      this.log.info(`Sender:\n "${address.toString()}"\n already registered.`);
-      return address;
+    if (accounts.includes(sender)) {
+      this.log.info(`Sender:\n "${sender.toString()}"\n already registered.`);
+      return sender;
     }
 
-    const wasAdded = await this.recipientTaggingDataProvider.addSenderAddress(address);
+    const wasAdded = await this.recipientTaggingDataProvider.addSenderAddress(sender);
 
     if (wasAdded) {
-      this.log.info(`Added sender:\n ${address.toString()}`);
+      this.log.info(`Added sender:\n ${sender.toString()}`);
     } else {
-      this.log.info(`Sender:\n "${address.toString()}"\n already registered.`);
+      this.log.info(`Sender:\n "${sender.toString()}"\n already registered.`);
     }
 
-    return address;
+    return sender;
   }
 
   /**
    * Retrieves senders registered in this PXE.
-   * @returns An array of the senders registered in this PXE.
+   * @returns Senders registered in this PXE.
    */
   public getSenders(): Promise<AztecAddress[]> {
     return this.recipientTaggingDataProvider.getSenderAddresses();
