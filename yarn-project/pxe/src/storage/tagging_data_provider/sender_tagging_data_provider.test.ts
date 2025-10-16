@@ -82,6 +82,18 @@ describe('SenderTaggingDataProvider', () => {
         'Duplicate secrets found when storing pending indexes',
       );
     });
+
+    it('throws when storing a different index for an existing secret + txHash pair', async () => {
+      const txHash = TxHash.random();
+
+      // First store an index
+      await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 5 }], txHash);
+
+      // Try to store a different index for the same secret + txHash pair
+      await expect(taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 7 }], txHash)).rejects.toThrow(
+        /Cannot store index 7.*a different index 5 already exists/,
+      );
+    });
   });
 
   describe('getTxHashesOfPendingIndexes', () => {
@@ -121,18 +133,21 @@ describe('SenderTaggingDataProvider', () => {
     it('returns unique tx hashes when multiple indexes from same tx are in range', async () => {
       const txHash1 = TxHash.random();
       const txHash2 = TxHash.random();
+      const txHash3 = TxHash.random();
 
       await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 3 }], txHash1);
       await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 5 }], txHash2);
-      // Store another index with the same secret and txHash1 (from a future call)
+      // Store different secret with txHash1 (same tx can have multiple secrets)
       await taggingDataProvider.storePendingIndexes([{ secret: secret2, index: 7 }], txHash1);
-      await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 7 }], txHash1);
+      // Store another index for secret1 with a different tx
+      await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 7 }], txHash3);
 
       const txHashes = await taggingDataProvider.getTxHashesOfPendingIndexes(secret1, 0, 10);
-      // Should have 2 unique tx hashes
-      expect(txHashes).toHaveLength(2);
+      // Should have 3 unique tx hashes for secret1
+      expect(txHashes).toHaveLength(3);
       expect(txHashes).toContainEqual(txHash1);
       expect(txHashes).toContainEqual(txHash2);
+      expect(txHashes).toContainEqual(txHash3);
     });
   });
 

@@ -32,13 +32,16 @@ export class SenderTaggingDataProvider {
 
   /**
    * Stores pending indexes.
-   * @remarks Ignores the index if the same preTag + txHash combination already exists in the db.
+   * @remarks Ignores the index if the same preTag + txHash combination already exists in the db with the same index.
    * @param preTags - The pre-tags containing the directional app tagging secrets and the indexes that are to be
    * stored in the db.
    * @param txHash - The hash of the pending tx that used the given pre-tags to compute private log tags.
    * @throws If any two pre-tags contain the same directional app tagging secret. This is enforced because we care
    * only about the highest index for a given secret that was used in the tx. Hence this check is a good way to catch
    * bugs.
+   * @throws If a secret + txHash pair already exists in the db with a different index value. It should never happen
+   * that we would attempt to store a different index for a given secret-txHash pair because we always store just the
+   * highest index for a given secret-txHash pair. Hence this is a good way to catch bugs.
    */
   async storePendingIndexes(preTags: PreTag[], txHash: TxHash) {
     // The secrets in pre-tags should be unique because we always store just the highest index per given secret-txHash
@@ -52,10 +55,20 @@ export class SenderTaggingDataProvider {
       const secretStr = secret.toString();
       const existing = (await this.#pendingIndexes.getAsync(secretStr)) ?? [];
 
-      // Check if this exact preTag + txHash combination already exists
-      const alreadyExists = existing.some(entry => entry.index === index && entry.txHash === txHash.toString());
+      // Check if this secret + txHash combination already exists
+      const existingEntry = existing.find(entry => entry.txHash === txHash.toString());
 
-      if (!alreadyExists) {
+      if (existingEntry) {
+        // If it exists with a different index, throw an error
+        if (existingEntry.index !== index) {
+          throw new Error(
+            `Cannot store index ${index} for secret ${secretStr} and txHash ${txHash.toString()}: ` +
+              `a different index ${existingEntry.index} already exists for this secret-txHash pair`,
+          );
+        }
+        // If it exists with the same index, ignore the update (no-op)
+      } else {
+        // If it doesn't exist, add it
         await this.#pendingIndexes.set(secretStr, [...existing, { index, txHash: txHash.toString() }]);
       }
     }
