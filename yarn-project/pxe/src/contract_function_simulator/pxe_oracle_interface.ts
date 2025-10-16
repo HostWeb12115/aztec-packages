@@ -340,7 +340,7 @@ export class PXEOracleInterface implements ExecutionDataProvider {
 
   // Note: I think syncSenderTaggingIndexes would be a better name as it better communicates the purpose of
   // the function - we care about finding the indexes but we don't care about the log contents.
-  // TODO(benesjan): Rename the function to syncSenderTaggingIndexes if reviewer agrees.
+  // TODO(#17776): If the linked issue does not get implemented ensure this gets renamed to syncSenderTaggingIndexes.
   public async syncTaggedLogsAsSender(
     secret: DirectionalAppTaggingSecret,
     contractAddress: AztecAddress,
