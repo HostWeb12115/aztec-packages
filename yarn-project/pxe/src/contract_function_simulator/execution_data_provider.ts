@@ -1,3 +1,4 @@
+import type { AztecNode } from '@aztec/aztec.js';
 import type { L1_TO_L2_MSG_TREE_HEIGHT } from '@aztec/constants';
 import type { Fr, Point } from '@aztec/foundation/fields';
 import type { FunctionArtifact, FunctionArtifactWithContractName, FunctionSelector } from '@aztec/stdlib/abi';
@@ -10,6 +11,7 @@ import type { NoteStatus } from '@aztec/stdlib/note';
 import { type MerkleTreeId, type NullifierMembershipWitness, PublicDataWitness } from '@aztec/stdlib/trees';
 import type { BlockHeader, NodeStats } from '@aztec/stdlib/tx';
 
+import type { SenderTaggingDataProvider } from '../storage/tagging_data_provider/sender_tagging_data_provider.js';
 import type { NoteData } from './oracle/interfaces.js';
 import type { MessageLoadOracleInputs } from './oracle/message_load_oracle_inputs.js';
 
@@ -227,17 +229,6 @@ export interface ExecutionDataProvider {
     recipient: AztecAddress,
   ): Promise<DirectionalAppTaggingSecret>;
 
-  // docs available in sync_sender_tagging_indexes.ts
-  syncTaggedLogsAsSender(secret: DirectionalAppTaggingSecret, contractAddress: AztecAddress): Promise<void>;
-
-  /**
-   * Returns the last used index when sending a log with a given secret.
-   * @param secret - The directional app tagging secret.
-   * @returns The last used index for the given directional app tagging secret, or undefined if we never sent a log
-   * from this sender to a recipient in a given contract (implicitly included in the secret).
-   */
-  getLastUsedIndexAsSender(secret: DirectionalAppTaggingSecret): Promise<number | undefined>;
-
   /**
    * Synchronizes the private logs tagged with scoped addresses and all the senders in the address book. Stores the found
    * logs in CapsuleArray ready for a later retrieval in Aztec.nr.
@@ -332,4 +323,8 @@ export interface ExecutionDataProvider {
    * @returns The execution statistics.
    */
   getStats(): ExecutionStats;
+
+  // Exposed when moving in the direction of #17776
+  get aztecNode(): AztecNode;
+  get senderTaggingDataProvider(): SenderTaggingDataProvider;
 }

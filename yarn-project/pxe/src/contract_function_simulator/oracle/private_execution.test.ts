@@ -46,6 +46,7 @@ import {
   deriveStorageSlotInMap,
   siloNoteHash,
 } from '@aztec/stdlib/hash';
+import type { AztecNode } from '@aztec/stdlib/interfaces/server';
 import { KeyValidationRequest } from '@aztec/stdlib/kernel';
 import { computeAppNullifierSecretKey, deriveKeys } from '@aztec/stdlib/keys';
 import { DirectionalAppTaggingSecret } from '@aztec/stdlib/logs';
@@ -66,6 +67,7 @@ import { jest } from '@jest/globals';
 import { Matcher, type MatcherCreator, type MockProxy, mock } from 'jest-mock-extended';
 import { toFunctionSelector } from 'viem';
 
+import type { SenderTaggingDataProvider } from '../../storage/tagging_data_provider/sender_tagging_data_provider.js';
 import { ContractFunctionSimulator } from '../contract_function_simulator.js';
 import type { ExecutionDataProvider } from '../execution_data_provider.js';
 import { MessageLoadOracleInputs } from './message_load_oracle_inputs.js';
@@ -107,6 +109,8 @@ describe('Private Execution test suite', () => {
   const simulator = new WASMSimulator();
 
   let executionDataProvider: MockProxy<ExecutionDataProvider>;
+  let senderTaggingDataProvider: MockProxy<SenderTaggingDataProvider>;
+  let aztecNode: MockProxy<AztecNode>;
   let acirSimulator: ContractFunctionSimulator;
 
   let anchorBlockHeader = BlockHeader.empty();
@@ -266,7 +270,29 @@ describe('Private Execution test suite', () => {
   beforeEach(async () => {
     trees = {};
     executionDataProvider = mock<ExecutionDataProvider>();
+    senderTaggingDataProvider = mock<SenderTaggingDataProvider>();
+    aztecNode = mock<AztecNode>();
     contracts = {};
+
+    // Mock the senderTaggingDataProvider getter
+    Object.defineProperty(executionDataProvider, 'senderTaggingDataProvider', {
+      get: () => senderTaggingDataProvider,
+    });
+
+    // Mock the aztecNode getter
+    Object.defineProperty(executionDataProvider, 'aztecNode', {
+      get: () => aztecNode,
+    });
+
+    // Mock sender tagging data provider methods
+    senderTaggingDataProvider.getLastFinalizedIndex.mockResolvedValue(undefined);
+    senderTaggingDataProvider.getLastUsedIndex.mockResolvedValue(undefined);
+    senderTaggingDataProvider.getTxHashesOfPendingIndexes.mockResolvedValue([]);
+    senderTaggingDataProvider.storePendingIndexes.mockResolvedValue();
+
+    // Mock aztec node methods
+    aztecNode.getLogsByTags.mockResolvedValue([]);
+
     executionDataProvider.getKeyValidationRequest.mockImplementation(
       async (pkMHash: Fr, contractAddress: AztecAddress) => {
         if (pkMHash.equals(await ownerCompleteAddress.publicKeys.masterNullifierPublicKey.hash())) {
@@ -304,9 +330,6 @@ describe('Private Execution test suite', () => {
       throw new Error(`Unknown address: ${address}. Recipient: ${recipient}, Owner: ${owner}`);
     });
 
-    executionDataProvider.getLastUsedIndexAsSender.mockImplementation((_secret: DirectionalAppTaggingSecret) => {
-      return Promise.resolve(undefined);
-    });
     executionDataProvider.getFunctionArtifact.mockImplementation(async (address, selector) => {
       const contract = contracts[address.toString()];
       if (!contract) {
@@ -336,9 +359,6 @@ describe('Private Execution test suite', () => {
     executionDataProvider.calculateDirectionalAppTaggingSecret.mockImplementation((_contract, _sender, _recipient) => {
       return Promise.resolve(DirectionalAppTaggingSecret.fromString('0x1'));
     });
-    executionDataProvider.syncTaggedLogsAsSender.mockImplementation((_directionalAppTaggingSecret, _contractAddress) =>
-      Promise.resolve(),
-    );
     executionDataProvider.loadCapsule.mockImplementation((_, __) => Promise.resolve(null));
 
     executionDataProvider.getPublicStorageAt.mockImplementation(

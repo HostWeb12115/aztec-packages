@@ -49,7 +49,6 @@ import {
   getInitialIndexesMap,
   getPreTagsForTheWindow,
 } from '../tagging/index.js';
-import { syncSenderTaggingIndexes } from '../tagging/sync/sync_sender_tagging_indexes.js';
 import { EventValidationRequest } from './noir-structs/event_validation_request.js';
 import { LogRetrievalRequest } from './noir-structs/log_retrieval_request.js';
 import { LogRetrievalResponse } from './noir-structs/log_retrieval_response.js';
@@ -60,14 +59,18 @@ import type { ProxiedNode } from './proxied_node.js';
  * A data layer that provides and stores information needed for simulating/proving a transaction.
  */
 export class PXEOracleInterface implements ExecutionDataProvider {
+  // Note: The Aztec node and senderDataProvider are exposed publicly since PXEOracleInterface will be deprecated soon
+  // (issue #17776). When refactoring tagging, it made sense to align with this future change by moving the sender
+  // tagging index sync functionality elsewhere. This required exposing these two properties since there is currently
+  // no alternative way to access them in the PrivateExecutionOracle.
   constructor(
-    private aztecNode: AztecNode | ProxiedNode,
+    public readonly aztecNode: AztecNode | ProxiedNode,
     private keyStore: KeyStore,
     private contractDataProvider: ContractDataProvider,
     private noteDataProvider: NoteDataProvider,
     private capsuleDataProvider: CapsuleDataProvider,
     private syncDataProvider: SyncDataProvider,
-    private senderTaggingDataProvider: SenderTaggingDataProvider,
+    public readonly senderTaggingDataProvider: SenderTaggingDataProvider,
     private recipientTaggingDataProvider: RecipientTaggingDataProvider,
     private addressDataProvider: AddressDataProvider,
     private privateEventDataProvider: PrivateEventDataProvider,
@@ -270,10 +273,6 @@ export class PXEOracleInterface implements ExecutionDataProvider {
     return this.recipientTaggingDataProvider.getSenderAddresses();
   }
 
-  public getLastUsedIndexAsSender(secret: DirectionalAppTaggingSecret): Promise<number | undefined> {
-    return this.senderTaggingDataProvider.getLastUsedIndex(secret);
-  }
-
   public async calculateDirectionalAppTaggingSecret(
     contractAddress: AztecAddress,
     sender: AztecAddress,
@@ -336,16 +335,6 @@ export class PXEOracleInterface implements ExecutionDataProvider {
       secret,
       index: indexes[i],
     }));
-  }
-
-  // Note: I think syncSenderTaggingIndexes would be a better name as it better communicates the purpose of
-  // the function - we care about finding the indexes but we don't care about the log contents.
-  // TODO(#17776): If the linked issue does not get implemented ensure this gets renamed to syncSenderTaggingIndexes.
-  public async syncTaggedLogsAsSender(
-    secret: DirectionalAppTaggingSecret,
-    contractAddress: AztecAddress,
-  ): Promise<void> {
-    await syncSenderTaggingIndexes(secret, contractAddress, this.aztecNode, this.senderTaggingDataProvider);
   }
 
   // TODO(#17775): Replace this implementation of this function with one implementing an approach similar
