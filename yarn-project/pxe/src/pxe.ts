@@ -484,13 +484,14 @@ export class PXE {
   }
 
   /**
-   * Registers a user contact in PXE.
+   * Registers an address as a sender in the PXE.
    *
-   * Once a new contact is registered, the PXE will be able to receive notes tagged from this contact.
-   * Will do nothing if the account is already registered.
+   * After registering a new sender, the PXE will sync private logs that are tagged with this sender's address.
+   * Will do nothing if the address is already registered.
    *
-   * @param address - Address of the user to add to the address book
-   * @returns The address address of the account.
+   * @param address - Address of the sender to register.
+   * @returns The address of the sender.
+   * TODO: It's strange that we return the address here and I (benesjan) think we should drop the return value.
    */
   public async registerSender(address: AztecAddress): Promise<AztecAddress> {
     const accounts = await this.keyStore.getAccounts();
@@ -511,23 +512,24 @@ export class PXE {
   }
 
   /**
-   * Retrieves the addresses stored as senders on this PXE.
-   * @returns An array of the senders on this PXE.
+   * Retrieves senders registered in this PXE.
+   * @returns An array of the senders registered in this PXE.
    */
   public getSenders(): Promise<AztecAddress[]> {
     return this.recipientTaggingDataProvider.getSenderAddresses();
   }
 
   /**
-   * Removes a sender in the address book.
+   * Removes a sender registered in this PXE.
+   * @param sender - The address of the sender to remove.
    */
-  public async removeSender(address: AztecAddress): Promise<void> {
-    const wasRemoved = await this.recipientTaggingDataProvider.removeSenderAddress(address);
+  public async removeSender(sender: AztecAddress): Promise<void> {
+    const wasRemoved = await this.recipientTaggingDataProvider.removeSenderAddress(sender);
 
     if (wasRemoved) {
-      this.log.info(`Removed sender:\n ${address.toString()}`);
+      this.log.info(`Removed sender:\n ${sender.toString()}`);
     } else {
-      this.log.info(`Sender:\n "${address.toString()}"\n not in address book.`);
+      this.log.info(`Sender:\n "${sender.toString()}"\n not registered in PXE.`);
     }
   }
 
