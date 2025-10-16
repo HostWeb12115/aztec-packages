@@ -153,10 +153,13 @@ export class SenderTaggingDataProvider {
       const pendingData = await this.#pendingIndexes.getAsync(secret);
       if (pendingData) {
         const filtered = pendingData.filter(item => item.txHash.toString() !== txHashStr);
-        if (filtered.length !== 1) {
+        if (filtered.length === 0) {
+          await this.#pendingIndexes.delete(secret);
+        } else if (filtered.length > 1) {
           throw new Error(`Multiple pending indexes found for tx hash ${txHashStr} and secret ${secret}`);
+        } else {
+          // No index found for this tx hash and secret pair --> this is a no-op
         }
-        await this.#pendingIndexes.delete(secret);
       }
     }
   }
