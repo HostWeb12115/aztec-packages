@@ -130,21 +130,23 @@ describe('SenderTaggingDataProvider', () => {
       expect(txHashes[0]).toEqual(txHash1);
     });
 
-    it('returns unique tx hashes when multiple indexes from same tx are in range', async () => {
+    it('handles parallel pending indexes for the same secret from different txs', async () => {
       const txHash1 = TxHash.random();
       const txHash2 = TxHash.random();
       const txHash3 = TxHash.random();
+      const txHash4 = TxHash.random();
 
       await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 3 }], txHash1);
       await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 5 }], txHash2);
-      // Store different secret with txHash1 (same tx can have multiple secrets)
+      // We store different secret with txHash1 to check we correctly don't return it in the result
       await taggingDataProvider.storePendingIndexes([{ secret: secret2, index: 7 }], txHash1);
-      // Store another index for secret1 with a different tx (can happen when sending logs from multiple PXEs)
+      // Store "parallel" index for secret1 with a different tx (can happen when sending logs from multiple PXEs)
       await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 7 }], txHash3);
+      await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 7 }], txHash4);
 
       const txHashes = await taggingDataProvider.getTxHashesOfPendingIndexes(secret1, 0, 10);
       // Should have 3 unique tx hashes for secret1
-      expect(txHashes).toEqual(expect.arrayContaining([txHash1, txHash2, txHash3]));
+      expect(txHashes).toEqual(expect.arrayContaining([txHash1, txHash2, txHash3, txHash4]));
     });
   });
 
