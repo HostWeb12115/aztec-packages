@@ -300,8 +300,8 @@ export class PXEOracleInterface implements ExecutionDataProvider {
    * @param recipient - The address receiving the notes
    * @returns A list of directional app tagging secrets along with the last used tagging indexes. If the corresponding
    * secret was never used, the index is undefined.
-   * TODO(benesjan): The naming here is broken as the function name does not reflect the return type. Fix when associating
-   * indexes with tx hash.
+   * TODO(#17775): The naming here is broken as the function name does not reflect the return type. Make sure this gets
+   * fixed when implementing the linked issue.
    */
   async #getLastUsedTaggingIndexesForSenders(
     contractAddress: AztecAddress,
@@ -348,7 +348,7 @@ export class PXEOracleInterface implements ExecutionDataProvider {
     await syncSenderTaggingIndexes(secret, contractAddress, this.aztecNode, this.senderTaggingDataProvider);
   }
 
-  // TODO(benesjan): Replace this implementation of this function with one implementing an approach similar
+  // TODO(#17775): Replace this implementation of this function with one implementing an approach similar
   // to syncSenderTaggingIndexes. Not done yet due to re-prioritization to devex and this doesn't directly affect
   // devex.
   public async syncTaggedLogs(
