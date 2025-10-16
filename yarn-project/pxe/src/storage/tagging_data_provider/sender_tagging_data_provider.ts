@@ -33,6 +33,8 @@ export class SenderTaggingDataProvider {
   /**
    * Stores pending indexes.
    * @remarks Ignores the index if the same preTag + txHash combination already exists in the db with the same index.
+   * This is expected to happen because whenever we start sync we start from the last finalized index and we can have
+   * pending indexes already stored from previous syncs.
    * @param preTags - The pre-tags containing the directional app tagging secrets and the indexes that are to be
    * stored in the db.
    * @param txHash - The hash of the pending tx that used the given pre-tags to compute private log tags.

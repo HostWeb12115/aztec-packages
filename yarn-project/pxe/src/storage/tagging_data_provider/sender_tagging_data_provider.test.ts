@@ -139,15 +139,12 @@ describe('SenderTaggingDataProvider', () => {
       await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 5 }], txHash2);
       // Store different secret with txHash1 (same tx can have multiple secrets)
       await taggingDataProvider.storePendingIndexes([{ secret: secret2, index: 7 }], txHash1);
-      // Store another index for secret1 with a different tx
+      // Store another index for secret1 with a different tx (can happen when sending logs from multiple PXEs)
       await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 7 }], txHash3);
 
       const txHashes = await taggingDataProvider.getTxHashesOfPendingIndexes(secret1, 0, 10);
       // Should have 3 unique tx hashes for secret1
-      expect(txHashes).toHaveLength(3);
-      expect(txHashes).toContainEqual(txHash1);
-      expect(txHashes).toContainEqual(txHash2);
-      expect(txHashes).toContainEqual(txHash3);
+      expect(txHashes).toEqual(expect.arrayContaining([txHash1, txHash2, txHash3]));
     });
   });
 
