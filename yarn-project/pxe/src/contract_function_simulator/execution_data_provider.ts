@@ -236,7 +236,7 @@ export interface ExecutionDataProvider {
    * @returns The highest used index for the given directional app tagging secret, or undefined if we never sent a log
    * from this sender to a recipient in a given contract (implicitly included in the secret).
    */
-  getHighestUsedIndexAsSender(secret: DirectionalAppTaggingSecret): Promise<number | undefined>;
+  getLastUsedIndexAsSender(secret: DirectionalAppTaggingSecret): Promise<number | undefined>;
 
   /**
    * Synchronizes the private logs tagged with scoped addresses and all the senders in the address book. Stores the found

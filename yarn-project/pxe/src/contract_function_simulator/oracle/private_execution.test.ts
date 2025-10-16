@@ -304,7 +304,7 @@ describe('Private Execution test suite', () => {
       throw new Error(`Unknown address: ${address}. Recipient: ${recipient}, Owner: ${owner}`);
     });
 
-    executionDataProvider.getHighestUsedIndexAsSender.mockImplementation((_secret: DirectionalAppTaggingSecret) => {
+    executionDataProvider.getLastUsedIndexAsSender.mockImplementation((_secret: DirectionalAppTaggingSecret) => {
       return Promise.resolve(undefined);
     });
     executionDataProvider.getFunctionArtifact.mockImplementation(async (address, selector) => {

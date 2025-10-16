@@ -47,8 +47,8 @@ describe('syncSenderTaggingIndexes', () => {
     await syncSenderTaggingIndexes(secret, contractAddress, aztecNode, taggingDataProvider);
 
     // Highest used and finalized indexes should stay undefined
-    expect(await taggingDataProvider.getHighestUsedIndex(secret)).toBeUndefined();
-    expect(await taggingDataProvider.getHighestFinalizedIndex(secret)).toBeUndefined();
+    expect(await taggingDataProvider.getLastUsedIndex(secret)).toBeUndefined();
+    expect(await taggingDataProvider.getLastFinalizedIndex(secret)).toBeUndefined();
   });
 
   // These tests need to be run together in sequence.
@@ -89,10 +89,10 @@ describe('syncSenderTaggingIndexes', () => {
       await syncSenderTaggingIndexes(secret, contractAddress, aztecNode, taggingDataProvider);
 
       // Verify the highest finalized index is updated to 3
-      expect(await taggingDataProvider.getHighestFinalizedIndex(secret)).toBe(finalizedIndexStep1);
+      expect(await taggingDataProvider.getLastFinalizedIndex(secret)).toBe(finalizedIndexStep1);
       // Verify the highest used index also returns 3 (when there is no higher pending index the highest used index is
       // the highest finalized index).
-      expect(await taggingDataProvider.getHighestUsedIndex(secret)).toBe(finalizedIndexStep1);
+      expect(await taggingDataProvider.getLastUsedIndex(secret)).toBe(finalizedIndexStep1);
     });
 
     it('step 2: pending log is synced', async () => {
@@ -118,9 +118,9 @@ describe('syncSenderTaggingIndexes', () => {
       await syncSenderTaggingIndexes(secret, contractAddress, aztecNode, taggingDataProvider);
 
       // Verify the highest finalized index was not updated
-      expect(await taggingDataProvider.getHighestFinalizedIndex(secret)).toBe(finalizedIndexStep1);
+      expect(await taggingDataProvider.getLastFinalizedIndex(secret)).toBe(finalizedIndexStep1);
       // Verify the highest used index was updated to the pending index
-      expect(await taggingDataProvider.getHighestUsedIndex(secret)).toBe(pendingIndexStep2);
+      expect(await taggingDataProvider.getLastUsedIndex(secret)).toBe(pendingIndexStep2);
     });
 
     it('step 3: syncs logs across 2 windows', async () => {
@@ -186,8 +186,8 @@ describe('syncSenderTaggingIndexes', () => {
 
       await syncSenderTaggingIndexes(secret, contractAddress, aztecNode, taggingDataProvider);
 
-      expect(await taggingDataProvider.getHighestFinalizedIndex(secret)).toBe(newHighestFinalizedIndex);
-      expect(await taggingDataProvider.getHighestUsedIndex(secret)).toBe(newHighestUsedIndex);
+      expect(await taggingDataProvider.getLastFinalizedIndex(secret)).toBe(newHighestFinalizedIndex);
+      expect(await taggingDataProvider.getLastUsedIndex(secret)).toBe(newHighestUsedIndex);
     });
   });
 
@@ -241,7 +241,7 @@ describe('syncSenderTaggingIndexes', () => {
     await syncSenderTaggingIndexes(secret, contractAddress, aztecNode, taggingDataProvider);
 
     // Verify that both highest finalized and highest used were set to the pending and finalized index
-    expect(await taggingDataProvider.getHighestFinalizedIndex(secret)).toBe(pendingAndFinalizedIndex);
-    expect(await taggingDataProvider.getHighestUsedIndex(secret)).toBe(pendingAndFinalizedIndex);
+    expect(await taggingDataProvider.getLastFinalizedIndex(secret)).toBe(pendingAndFinalizedIndex);
+    expect(await taggingDataProvider.getLastUsedIndex(secret)).toBe(pendingAndFinalizedIndex);
   });
 });

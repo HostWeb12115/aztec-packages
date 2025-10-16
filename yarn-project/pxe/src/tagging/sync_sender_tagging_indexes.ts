@@ -34,7 +34,7 @@ export async function syncSenderTaggingIndexes(
   aztecNode: AztecNode,
   taggingDataProvider: SenderTaggingDataProvider,
 ): Promise<void> {
-  const finalizedIndex = await taggingDataProvider.getHighestFinalizedIndex(secret);
+  const finalizedIndex = await taggingDataProvider.getLastFinalizedIndex(secret);
 
   let start = finalizedIndex === undefined ? 0 : finalizedIndex + 1;
   let end = start + WINDOW_LEN;
@@ -82,7 +82,7 @@ export async function syncSenderTaggingIndexes(
     }
 
     // We check if the finalized index has been updated.
-    newFinalizedIndex = await taggingDataProvider.getHighestFinalizedIndex(secret);
+    newFinalizedIndex = await taggingDataProvider.getLastFinalizedIndex(secret);
     if (previousFinalizedIndex !== newFinalizedIndex) {
       // A new finalized index was found, so we'll run the loop again. For example:
       // - Previous finalized index: 10

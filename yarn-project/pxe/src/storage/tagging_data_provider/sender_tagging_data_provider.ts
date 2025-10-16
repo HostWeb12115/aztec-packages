@@ -4,8 +4,8 @@ import type { DirectionalAppTaggingSecret, PreTag } from '@aztec/stdlib/logs';
 import { TxHash } from '@aztec/stdlib/tx';
 
 /**
- * Data provider of tagging data used when syncing the sender tagging indexes. The recipient alternative of this class is
- * called RecipientTaggingDataProvider. We have the providers separate for the sender and recipient because
+ * Data provider of tagging data used when syncing the sender tagging indexes. The recipient alternative of this class
+ * is called RecipientTaggingDataProvider. We have the providers separate for the sender and recipient because
  * the algorithms are completely disjoint and there is not data reuse between the 2.
  */
 export class SenderTaggingDataProvider {
@@ -18,16 +18,16 @@ export class SenderTaggingDataProvider {
   // the highest index in the given tx is relevant for future index choice when sending a private log.
   #pendingIndexes: AztecAsyncMap<string, { index: number; txHash: string }[]>;
 
-  // Stores the highest finalized index for each directional app tagging secret. We care only about the highest index
-  // because unlike the pending indexes, it will never happen that a finalized index would be removed and hence we
-  // don't need to store the history.
-  #highestFinalizedIndexes: AztecAsyncMap<string, number>;
+  // Stores the last (highest) finalized index for each directional app tagging secret. We care only about the last
+  // index because unlike the pending indexes, it will never happen that a finalized index would be removed and hence
+  // we don't need to store the history.
+  #lastFinalizedIndexes: AztecAsyncMap<string, number>;
 
   constructor(store: AztecAsyncKVStore) {
     this.#store = store;
 
     this.#pendingIndexes = this.#store.openMap('pending_indexes');
-    this.#highestFinalizedIndexes = this.#store.openMap('highest_finalized_indexes');
+    this.#lastFinalizedIndexes = this.#store.openMap('last_finalized_indexes');
   }
 
   /**
@@ -42,8 +42,11 @@ export class SenderTaggingDataProvider {
    */
   async storePendingIndexes(preTags: PreTag[], txHash: TxHash) {
     // The secrets in pre-tags should be unique because we always store just the highest index per given secret-txHash
-    // pair.
-    this.#assertUniqueSecrets(preTags);
+    // pair. Below we check that this is the case.
+    const secretsSet = new Set(preTags.map(preTag => preTag.secret.toString()));
+    if (secretsSet.size !== preTags.length) {
+      throw new Error(`Duplicate secrets found when storing pending indexes`);
+    }
 
     for (const { secret, index } of preTags) {
       const secretStr = secret.toString();
@@ -81,64 +84,38 @@ export class SenderTaggingDataProvider {
   }
 
   /**
-   * Sets the last finalized indexes when sending a log.
-   * @param preTags - The pre-tags containing the directional app tagging secrets and the indexes that are to be
-   * updated in the db.
-   * @throws If any two pre-tags contain the same directional app tagging secret
-   * @throws If any index is smaller than or equal to the previously stored index
+   * Returns the last (highest) finalized index for a given secret.
+   * @param secret - The secret to get the last finalized index for.
+   * @returns The last (highest) finalized index for the given secret.
    */
-  async setLastFinalizedIndexes(preTags: PreTag[]) {
-    this.#assertUniqueSecrets(preTags);
-
-    await Promise.all(
-      preTags.map(async ({ secret, index }) => {
-        const secretStr = secret.toString();
-        const prevIndex = await this.#highestFinalizedIndexes.getAsync(secretStr);
-        if (prevIndex !== undefined && index <= prevIndex) {
-          throw new Error(`New finalized tagging index ${index} must be larger than previous index ${prevIndex}`);
-        }
-        return this.#highestFinalizedIndexes.set(secretStr, index);
-      }),
-    );
-  }
-
-  // It should never happen that we would receive any two pre-tags on the input containing the same directional app
-  // tagging secret as everywhere we always just apply the largest index. Hence this check is a good way to catch
-  // bugs.
-  #assertUniqueSecrets(preTags: PreTag[]): void {
-    const secretStrings = preTags.map(({ secret }) => secret.toString());
-    const uniqueSecrets = new Set(secretStrings);
-    if (uniqueSecrets.size !== secretStrings.length) {
-      throw new Error(`Duplicate secrets found when setting last used indexes as sender`);
-    }
+  getLastFinalizedIndex(secret: DirectionalAppTaggingSecret): Promise<number | undefined> {
+    return this.#lastFinalizedIndexes.getAsync(secret.toString());
   }
 
   /**
-   * Returns the highest finalized index for a given secret.
-   * @param secret - The secret to get the highest finalized index for.
-   * @returns The highest seen finalized index for the given secret.
+   * Returns the last used index for a given directional app tagging secret, considering both finalized and pending
+   * indexes.
+   * @param secret - The directional app tagging secret to query the last used index for.
+   * @returns The last used index.
+   * @throws If the last pending index is less than or equal to the last finalized index, which indicates a bug.
    */
-  getHighestFinalizedIndex(secret: DirectionalAppTaggingSecret): Promise<number | undefined> {
-    return this.#highestFinalizedIndexes.getAsync(secret.toString());
-  }
-
-  async getHighestUsedIndex(secret: DirectionalAppTaggingSecret): Promise<number | undefined> {
-    const highestFinalizedIndex = await this.#highestFinalizedIndexes.getAsync(secret.toString());
+  async getLastUsedIndex(secret: DirectionalAppTaggingSecret): Promise<number | undefined> {
+    const lastFinalizedIndex = await this.#lastFinalizedIndexes.getAsync(secret.toString());
     const pendingTxScopedIndexes = (await this.#pendingIndexes.getAsync(secret.toString())) ?? [];
     const pendingIndexes = pendingTxScopedIndexes.map(entry => entry.index);
 
     if (pendingTxScopedIndexes.length === 0) {
-      return highestFinalizedIndex;
+      return lastFinalizedIndex;
     }
 
-    const highestPendingIndex = Math.max(...pendingIndexes);
-    if (highestFinalizedIndex !== undefined && highestPendingIndex <= highestFinalizedIndex) {
+    const lastPendingIndex = Math.max(...pendingIndexes);
+    if (lastFinalizedIndex !== undefined && lastPendingIndex <= lastFinalizedIndex) {
       throw new Error(
-        `Highest pending index ${highestPendingIndex} is lower than or equal to highest finalized index ${highestFinalizedIndex}. This is a bug and should never happen!`,
+        `Last pending index ${lastPendingIndex} is lower than or equal to last finalized index ${lastFinalizedIndex}. This is a bug!`,
       );
     }
 
-    return highestPendingIndex;
+    return lastPendingIndex;
   }
 
   /**
@@ -181,17 +158,19 @@ export class SenderTaggingDataProvider {
           .filter(item => item.txHash.toString() === txHashStr)
           .map(item => item.index);
         if (matchingIndexes.length === 1) {
+          let currentFinalized = await this.#lastFinalizedIndexes.getAsync(secret);
+          const newFinalized = matchingIndexes[0];
+
           // It could happen that the newly discovered finalized index is smaller than the current one because there
-          // might have been other pending tx with a higher finalized index in this round of syncing. For this reason
-          // we store the higher one.
-          const currentFinalized = await this.#highestFinalizedIndexes.getAsync(secret);
-          const newFinalized = Math.max(currentFinalized ?? 0, matchingIndexes[0]);
-          await this.#highestFinalizedIndexes.set(secret, newFinalized);
+          // might have been other pending txs with a higher finalized index in this round of syncing. For this reason
+          // we store the new index only if it's higher than the current one.
+          if (newFinalized > (currentFinalized ?? 0)) {
+            await this.#lastFinalizedIndexes.set(secret, newFinalized);
+            currentFinalized = newFinalized;
+          }
 
-          // We store the remaining items with a higher index in pending.
-          const remainingItems = pendingData.filter(item => item.txHash.toString() !== txHashStr);
-          const remainingItemsOfHigherIndex = remainingItems.filter(item => item.index > newFinalized);
-
+          // We prune the no longer necessary pending data.
+          const remainingItemsOfHigherIndex = pendingData.filter(item => item.index > (currentFinalized ?? 0));
           if (remainingItemsOfHigherIndex.length === 0) {
             await this.#pendingIndexes.delete(secret);
           } else {

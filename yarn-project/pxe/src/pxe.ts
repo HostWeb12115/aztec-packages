@@ -758,7 +758,7 @@ export class PXE {
           // First we check that for any secret the highest used index in tx is not further than window length from
           // the highest finalized index.
           for (const preTag of preTagsUsedInTheTx) {
-            const finalizedIndex = (await this.senderTaggingDataProvider.getHighestFinalizedIndex(preTag.secret)) ?? 0;
+            const finalizedIndex = (await this.senderTaggingDataProvider.getLastFinalizedIndex(preTag.secret)) ?? 0;
             if (preTag.index > finalizedIndex + SENDER_TAGGING_INDEXES_SYNC_WINDOW_LEN) {
               throw new Error(
                 `Highest used index ${preTag.index} is further than window length from the highest finalized index ${finalizedIndex}. Tagging window length ${SENDER_TAGGING_INDEXES_SYNC_WINDOW_LEN} is configured too low. Contact the Aztec team to increase it!`,
