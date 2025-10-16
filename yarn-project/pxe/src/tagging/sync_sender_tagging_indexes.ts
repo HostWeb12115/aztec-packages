@@ -13,8 +13,8 @@ import { Tag } from './tag.js';
 // MAX_PRIVATE_LOGS_PER_TX indexes consumed in case the logs are squashed. This happens when the log contains a note
 // and the note is nullified in the same tx.
 // Note: Set it to 95 because `e2e_pending_note_hashes_contract` test hit 95 indexes emitted and 100 makes
-// `docs_examples.test.ts` fail as our JSON RPC doesn't seem to allow array with length 100. I (benesjan) think this
-// window length should be fine.
+// `docs_examples.test.ts` fail as our JSON RPC doesn't seem to allow arrays with length larger than 99. I (benesjan)
+// think this window length should be fine.
 export const WINDOW_LEN = 95;
 
 /**
@@ -49,7 +49,7 @@ export async function syncSenderTaggingIndexes(
 
     // Retrieve all indexes within the current window from storage. For each secret-txHash pair, we only store the
     // highest index in the data provider. This means we may not get a transaction hash even if some of its indexes
-    // fall within the window (specifically when 'end' is greater than those indexes). This is fine as those tx hashes
+    // fall within the window (specifically when `end` is greater than those indexes). This is fine as those tx hashes
     // will simply be processed in subsequent iterations.
     const pendingTxHashes = await taggingDataProvider.getTxHashesOfPendingIndexes(secret, start, end);
     if (pendingTxHashes.length === 0) {
@@ -103,6 +103,7 @@ export async function syncSenderTaggingIndexes(
       start = previousEnd;
       previousFinalizedIndex = newFinalizedIndex;
     } else {
+      // No new finalized index was found, so we don't need to process the next window.
       break;
     }
   }

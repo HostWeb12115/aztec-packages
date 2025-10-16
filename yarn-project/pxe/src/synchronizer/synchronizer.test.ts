@@ -18,7 +18,7 @@ describe('Synchronizer', () => {
   let tipsStore: L2TipsKVStore;
   let syncDataProvider: SyncDataProvider;
   let noteDataProvider: NoteDataProvider;
-  let taggingDataProvider: RecipientTaggingDataProvider;
+  let recipientTaggingDataProvider: RecipientTaggingDataProvider;
   let aztecNode: MockProxy<AztecNode>;
   let blockStream: MockProxy<L2BlockStream>;
 
@@ -35,8 +35,14 @@ describe('Synchronizer', () => {
     tipsStore = new L2TipsKVStore(store, 'pxe');
     syncDataProvider = new SyncDataProvider(store);
     noteDataProvider = await NoteDataProvider.create(store);
-    taggingDataProvider = new RecipientTaggingDataProvider(store);
-    synchronizer = new TestSynchronizer(aztecNode, syncDataProvider, noteDataProvider, taggingDataProvider, tipsStore);
+    recipientTaggingDataProvider = new RecipientTaggingDataProvider(store);
+    synchronizer = new TestSynchronizer(
+      aztecNode,
+      syncDataProvider,
+      noteDataProvider,
+      recipientTaggingDataProvider,
+      tipsStore,
+    );
   });
 
   it('sets header from latest block', async () => {
@@ -52,7 +58,7 @@ describe('Synchronizer', () => {
       .spyOn(noteDataProvider, 'rollbackNotesAndNullifiers')
       .mockImplementation(() => Promise.resolve());
     const resetNoteSyncData = jest
-      .spyOn(taggingDataProvider, 'resetNoteSyncData')
+      .spyOn(recipientTaggingDataProvider, 'resetNoteSyncData')
       .mockImplementation(() => Promise.resolve());
     aztecNode.getBlockHeader.mockImplementation(async blockNumber =>
       (await L2Block.random(blockNumber as number)).getBlockHeader(),
