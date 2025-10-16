@@ -47,7 +47,10 @@ export async function syncSenderTaggingIndexes(
     // them were previously sent from this PXE. Any duplicates are handled by the tagging data provider.
     await loadAndStoreNewTaggingIndexes(secret, app, start, end, aztecNode, taggingDataProvider);
 
-    // We get all the indexes for a given window from the store.
+    // Retrieve all indexes within the current window from storage. For each secret-txHash pair, we only store the
+    // highest index in the data provider. This means we may not get a transaction hash even if some of its indexes
+    // fall within the window (specifically when 'end' is greater than those indexes). This is fine as those tx hashes
+    // will simply be processed in subsequent iterations.
     const pendingTxHashes = await taggingDataProvider.getTxHashesOfPendingIndexes(secret, start, end);
     if (pendingTxHashes.length === 0) {
       break;
