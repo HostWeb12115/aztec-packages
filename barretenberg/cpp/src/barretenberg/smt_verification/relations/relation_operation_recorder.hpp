@@ -149,19 +149,14 @@ class RecordingFF {
         , constant_value(bb::fr::zero())
     {}
 
-    // Single-argument constructors for integers (to avoid ambiguity)
-    explicit RecordingFF(int val)
+    // Single-argument constructors for integers
+    // Template constructor that accepts any integral type and converts to uint64_t to avoid ambiguity
+    template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+    RecordingFF(T val)
         : trace(default_trace ? default_trace : std::make_shared<OperationTrace>())
         , operation_id(std::nullopt)
         , is_constant(true)
-        , constant_value(bb::fr(val))
-    {}
-
-    explicit RecordingFF(uint64_t val)
-        : trace(default_trace ? default_trace : std::make_shared<OperationTrace>())
-        , operation_id(std::nullopt)
-        , is_constant(true)
-        , constant_value(bb::fr(val))
+        , constant_value(bb::fr(static_cast<uint64_t>(val)))
     {}
 
     // Single-argument constructor from uint256_t (for relation constants)
@@ -314,6 +309,8 @@ class RecordingFF {
         return *this;
     }
 
+    RecordingFF sqr() const { return *this * *this; }
+
     RecordingFF operator-() const
     {
         if (is_constant) {
@@ -344,6 +341,32 @@ class RecordingFF {
         auto converted = RecordingFF(bb::fr(c));
         return converted - x;
     }
+
+    // Operations with integer literals
+    friend RecordingFF operator+(const RecordingFF& x, int c) { return x + RecordingFF(c); }
+
+    friend RecordingFF operator+(int c, const RecordingFF& x) { return RecordingFF(c) + x; }
+
+    friend RecordingFF operator-(const RecordingFF& x, int c) { return x - RecordingFF(c); }
+
+    friend RecordingFF operator-(int c, const RecordingFF& x) { return RecordingFF(c) - x; }
+
+    friend RecordingFF operator*(const RecordingFF& x, int c) { return x * RecordingFF(c); }
+
+    friend RecordingFF operator*(int c, const RecordingFF& x) { return RecordingFF(c) * x; }
+
+    // Operations with uint64_t
+    friend RecordingFF operator+(const RecordingFF& x, uint64_t c) { return x + RecordingFF(c); }
+
+    friend RecordingFF operator+(uint64_t c, const RecordingFF& x) { return RecordingFF(c) + x; }
+
+    friend RecordingFF operator-(const RecordingFF& x, uint64_t c) { return x - RecordingFF(c); }
+
+    friend RecordingFF operator-(uint64_t c, const RecordingFF& x) { return RecordingFF(c) - x; }
+
+    friend RecordingFF operator*(const RecordingFF& x, uint64_t c) { return x * RecordingFF(c); }
+
+    friend RecordingFF operator*(uint64_t c, const RecordingFF& x) { return RecordingFF(c) * x; }
 };
 
 /**
