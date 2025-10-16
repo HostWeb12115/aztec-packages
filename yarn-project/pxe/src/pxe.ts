@@ -484,7 +484,7 @@ export class PXE {
   }
 
   /**
-   * Registers a sender in the PXE.
+   * Registers a sender in this PXE.
    *
    * After registering a new sender, the PXE will sync private logs that are tagged with this sender's address.
    * Will do nothing if the address is already registered.
