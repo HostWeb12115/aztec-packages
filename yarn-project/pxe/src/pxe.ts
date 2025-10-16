@@ -769,12 +769,12 @@ export class PXE {
           // TODO(benesjan): The following is an expensive operation. Figure out a way to avoid it.
           const txHash = (await txProvingResult.toTx()).txHash;
 
-          await this.senderTaggingDataProvider.updatePendingIndexes(preTagsUsedInTheTx, txHash);
-          this.log.debug(`Stored used pre tags as sender for the tx`, {
+          await this.senderTaggingDataProvider.storePendingIndexes(preTagsUsedInTheTx, txHash);
+          this.log.debug(`Stored used pre-tags as sender for the tx`, {
             preTagsUsedInTheTx,
           });
         } else {
-          this.log.debug(`No pre tags used in the tx`);
+          this.log.debug(`No pre-tags used in the tx`);
         }
 
         return txProvingResult;

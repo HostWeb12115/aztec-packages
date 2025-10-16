@@ -24,9 +24,9 @@ export class RecipientTaggingDataProvider {
 
   /**
    * Sets the last used indexes when looking for logs.
-   * @param preTags - The pre tags containing the directional app tagging secrets and the indexes that are to be
+   * @param preTags - The pre-tags containing the directional app tagging secrets and the indexes that are to be
    * updated in the db.
-   * @throws If any two pre tags contain the same directional app tagging secret
+   * @throws If any two pre-tags contain the same directional app tagging secret
    */
   setLastUsedIndexes(preTags: PreTag[]) {
     this.#assertUniqueSecrets(preTags);
@@ -34,7 +34,7 @@ export class RecipientTaggingDataProvider {
     return Promise.all(preTags.map(({ secret, index }) => this.#lastUsedIndexes.set(secret.toString(), index)));
   }
 
-  // It should never happen that we would receive any two pre tags on the input containing the same directional app
+  // It should never happen that we would receive any two pre-tags on the input containing the same directional app
   // tagging secret as everywhere we always just apply the largest index. Hence this check is a good way to catch
   // bugs.
   #assertUniqueSecrets(preTags: PreTag[]): void {

@@ -48,7 +48,7 @@ export async function syncSenderTaggingIndexes(
     await loadAndStoreNewTaggingIndexes(secret, app, start, end, aztecNode, taggingDataProvider);
 
     // We get all the indexes for a given window from the store.
-    const pendingTxHashes = await taggingDataProvider.getTxHashesOfPendingIndexesForRangeForSecret(secret, start, end);
+    const pendingTxHashes = await taggingDataProvider.getTxHashesOfPendingIndexes(secret, start, end);
     if (pendingTxHashes.length === 0) {
       break;
     }
@@ -142,7 +142,7 @@ async function loadAndStoreNewTaggingIndexes(
   // Now we iterate over the map, reconstruct the preTags and tx hash and store them in the db.
   for (const [txHashStr, highestIndex] of highestIndexMap.entries()) {
     const txHash = TxHash.fromString(txHashStr);
-    await taggingDataProvider.updatePendingIndexes([{ secret, index: highestIndex }], txHash);
+    await taggingDataProvider.storePendingIndexes([{ secret, index: highestIndex }], txHash);
   }
 }
 

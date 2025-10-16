@@ -446,7 +446,7 @@ export class PXEOracleInterface implements ExecutionDataProvider {
               filteredLogsByBlockNumber,
             );
 
-            // We retrieve the pre tag corresponding to the log as I need that to evaluate whether
+            // We retrieve the pre-tag corresponding to the log as I need that to evaluate whether
             // a new largest index have been found.
             const preTagCorrespondingToLog = preTagsForTheWholeWindow[logIndex];
             const initialIndex = initialIndexesMap[preTagCorrespondingToLog.secret.toString()];

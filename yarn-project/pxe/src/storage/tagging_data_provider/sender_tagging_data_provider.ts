@@ -31,16 +31,18 @@ export class SenderTaggingDataProvider {
   }
 
   /**
-   * Updates pending indexes as sender when sending a log. Ignores the update if the same preTag + txHash combination
-   * already exists.
-   * @param preTags - The pre tags containing the directional app tagging secrets and the indexes that are to be
-   * updated in the db.
-   * @param txHash - The hash of the pending tx that use the given pre tags to compute private log tags.
-   * @throws If any two pre tags contain the same directional app tagging secret. This is enforced because we care
+   * Stores pending indexes.
+   * @remarks Ignores the index if the same preTag + txHash combination already exists in the db.
+   * @param preTags - The pre-tags containing the directional app tagging secrets and the indexes that are to be
+   * stored in the db.
+   * @param txHash - The hash of the pending tx that used the given pre-tags to compute private log tags.
+   * @throws If any two pre-tags contain the same directional app tagging secret. This is enforced because we care
    * only about the highest index for a given secret that was used in the tx. Hence this check is a good way to catch
    * bugs.
    */
-  async updatePendingIndexes(preTags: PreTag[], txHash: TxHash) {
+  async storePendingIndexes(preTags: PreTag[], txHash: TxHash) {
+    // The secrets in pre-tags should be unique because we always store just the highest index per given secret-txHash
+    // pair.
     this.#assertUniqueSecrets(preTags);
 
     for (const { secret, index } of preTags) {
@@ -56,7 +58,16 @@ export class SenderTaggingDataProvider {
     }
   }
 
-  async getTxHashesOfPendingIndexesForRangeForSecret(
+  /**
+   * Returns the transaction hashes of all pending transactions that contain indexes within a specified range
+   * for a given directional app tagging secret.
+   * @param secret - The directional app tagging secret to query pending indexes for.
+   * @param startIndex - The lower bound of the index range (inclusive).
+   * @param endIndex - The upper bound of the index range (exclusive).
+   * @returns An array of unique transaction hashes for pending transactions that contain indexes in the range
+   * [startIndex, endIndex). Returns an empty array if no pending indexes exist in the range.
+   */
+  async getTxHashesOfPendingIndexes(
     secret: DirectionalAppTaggingSecret,
     startIndex: number,
     endIndex: number,
@@ -71,9 +82,9 @@ export class SenderTaggingDataProvider {
 
   /**
    * Sets the last finalized indexes when sending a log.
-   * @param preTags - The pre tags containing the directional app tagging secrets and the indexes that are to be
+   * @param preTags - The pre-tags containing the directional app tagging secrets and the indexes that are to be
    * updated in the db.
-   * @throws If any two pre tags contain the same directional app tagging secret
+   * @throws If any two pre-tags contain the same directional app tagging secret
    * @throws If any index is smaller than or equal to the previously stored index
    */
   async setLastFinalizedIndexes(preTags: PreTag[]) {
@@ -91,7 +102,7 @@ export class SenderTaggingDataProvider {
     );
   }
 
-  // It should never happen that we would receive any two pre tags on the input containing the same directional app
+  // It should never happen that we would receive any two pre-tags on the input containing the same directional app
   // tagging secret as everywhere we always just apply the largest index. Hence this check is a good way to catch
   // bugs.
   #assertUniqueSecrets(preTags: PreTag[]): void {

@@ -15,7 +15,7 @@ export function getPreTagsForTheWindow(
 
 /**
  * Creates a map from directional app tagging secret to initial index.
- * @param preTags - The pre tags to get the initial indexes map from.
+ * @param preTags - The pre-tags to get the initial indexes map from.
  * @returns The map from directional app tagging secret to initial index.
  */
 export function getInitialIndexesMap(preTags: { secret: DirectionalAppTaggingSecret; index: number | undefined }[]): {
