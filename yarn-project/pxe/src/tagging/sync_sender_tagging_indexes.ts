@@ -99,7 +99,8 @@ export async function syncSenderTaggingIndexes(
       //    New window:                                             [21, 22, 23]
 
       const previousEnd = end;
-      end = newFinalizedIndex! + 1 + WINDOW_LEN;
+      // Add 1 because `end` is exclusive and the known finalized index is not included in the window.
+      end = newFinalizedIndex! + WINDOW_LEN + 1;
       start = previousEnd;
       previousFinalizedIndex = newFinalizedIndex;
     } else {
@@ -109,6 +110,18 @@ export async function syncSenderTaggingIndexes(
   }
 }
 
+/**
+ * Loads tagging indexes from the Aztec node and stores them in the tagging data provider.
+ * @remarks This function is one of two places by which a pending index can get to the tagging data provider. The other
+ * place is when a tx is being sent from this PXE.
+ * @param secret - The directional app tagging secret that's unique for (sender, recipient, contract) tuple.
+ * @param app - The address of the contract that the logs are tagged for. Used for siloing tags to match
+ * kernel circuit behavior.
+ * @param start - The starting index (inclusive) of the window to process.
+ * @param end - The ending index (exclusive) of the window to process.
+ * @param aztecNode - The Aztec node instance to query for logs.
+ * @param taggingDataProvider - The data provider to store pending indexes.
+ */
 async function loadAndStoreNewTaggingIndexes(
   secret: DirectionalAppTaggingSecret,
   app: AztecAddress,
@@ -118,7 +131,7 @@ async function loadAndStoreNewTaggingIndexes(
   taggingDataProvider: SenderTaggingDataProvider,
 ) {
   // We compute the tags for the current window of indexes
-  const preTagsForWindow: PreTag[] = Array(end - start + 1)
+  const preTagsForWindow: PreTag[] = Array(end - start)
     .fill(0)
     .map((_, i) => ({ secret, index: start + i }));
   const siloedTagsForWindow = await Promise.all(
