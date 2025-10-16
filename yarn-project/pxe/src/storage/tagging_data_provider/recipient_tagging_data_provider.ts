@@ -12,7 +12,7 @@ export class RecipientTaggingDataProvider {
   #store: AztecAsyncKVStore;
   #addressBook: AztecAsyncMap<string, true>;
 
-  // TODO(benesjan): document and rename
+  // Stores the last used index for each directional app tagging secret.
   #lastUsedIndexes: AztecAsyncMap<string, number>;
 
   constructor(store: AztecAsyncKVStore) {
@@ -29,20 +29,13 @@ export class RecipientTaggingDataProvider {
    * @throws If any two pre-tags contain the same directional app tagging secret
    */
   setLastUsedIndexes(preTags: PreTag[]) {
-    this.#assertUniqueSecrets(preTags);
+    // Non-unique secrets would indicate a bug in the caller function.
+    const secretsSet = new Set(preTags.map(preTag => preTag.secret.toString()));
+    if (secretsSet.size !== preTags.length) {
+      throw new Error(`Duplicate secrets found when setting last used indexes`);
+    }
 
     return Promise.all(preTags.map(({ secret, index }) => this.#lastUsedIndexes.set(secret.toString(), index)));
-  }
-
-  // It should never happen that we would receive any two pre-tags on the input containing the same directional app
-  // tagging secret as everywhere we always just apply the largest index. Hence this check is a good way to catch
-  // bugs.
-  #assertUniqueSecrets(preTags: PreTag[]): void {
-    const secretStrings = preTags.map(({ secret }) => secret.toString());
-    const uniqueSecrets = new Set(secretStrings);
-    if (uniqueSecrets.size !== secretStrings.length) {
-      throw new Error(`Duplicate secrets found when setting last used indexes as recipient`);
-    }
   }
 
   /**
@@ -57,8 +50,8 @@ export class RecipientTaggingDataProvider {
 
   resetNoteSyncData(): Promise<void> {
     return this.#store.transactionAsync(async () => {
-      const keysForRecipients = await toArray(this.#lastUsedIndexes.keysAsync());
-      await Promise.all(keysForRecipients.map(secret => this.#lastUsedIndexes.delete(secret)));
+      const keys = await toArray(this.#lastUsedIndexes.keysAsync());
+      await Promise.all(keys.map(secret => this.#lastUsedIndexes.delete(secret)));
     });
   }
 
