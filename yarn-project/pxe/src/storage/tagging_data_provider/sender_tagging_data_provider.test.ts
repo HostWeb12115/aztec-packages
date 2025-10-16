@@ -94,6 +94,52 @@ describe('SenderTaggingDataProvider', () => {
         /Cannot store index 7.*a different index 5 already exists/,
       );
     });
+
+    it('throws when storing a pending index lower than the last finalized index', async () => {
+      const txHash1 = TxHash.random();
+      const txHash2 = TxHash.random();
+
+      // First store and finalize an index
+      await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 10 }], txHash1);
+      await taggingDataProvider.updateStatusToFinalized(txHash1);
+
+      // Try to store a pending index lower than the finalized index
+      await expect(taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 5 }], txHash2)).rejects.toThrow(
+        /Cannot store pending index 5.*lower than or equal to the last finalized index 10/,
+      );
+    });
+
+    it('throws when storing a pending index equal to the last finalized index', async () => {
+      const txHash1 = TxHash.random();
+      const txHash2 = TxHash.random();
+
+      // First store and finalize an index
+      await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 10 }], txHash1);
+      await taggingDataProvider.updateStatusToFinalized(txHash1);
+
+      // Try to store a pending index equal to the finalized index
+      await expect(taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 10 }], txHash2)).rejects.toThrow(
+        /Cannot store pending index 10.*lower than or equal to the last finalized index 10/,
+      );
+    });
+
+    it('allows storing a pending index higher than the last finalized index', async () => {
+      const txHash1 = TxHash.random();
+      const txHash2 = TxHash.random();
+
+      // First store and finalize an index
+      await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 10 }], txHash1);
+      await taggingDataProvider.updateStatusToFinalized(txHash1);
+
+      // Store a pending index higher than the finalized index - should succeed
+      await expect(
+        taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 15 }], txHash2),
+      ).resolves.not.toThrow();
+
+      const txHashes = await taggingDataProvider.getTxHashesOfPendingIndexes(secret1, 0, 20);
+      expect(txHashes).toHaveLength(1);
+      expect(txHashes[0]).toEqual(txHash2);
+    });
   });
 
   describe('getTxHashesOfPendingIndexes', () => {
@@ -207,21 +253,6 @@ describe('SenderTaggingDataProvider', () => {
 
       const lastUsed = await taggingDataProvider.getLastUsedIndex(secret1);
       expect(lastUsed).toBe(7);
-    });
-
-    it('throws when last pending index is lower than or equal to last finalized index', async () => {
-      const txHash1 = TxHash.random();
-
-      // Finalize index 7
-      await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 7 }], txHash1);
-      await taggingDataProvider.updateStatusToFinalized(txHash1);
-
-      // Manually add a pending index that is lower (simulating a bug)
-      await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 5 }], TxHash.random());
-
-      await expect(taggingDataProvider.getLastUsedIndex(secret1)).rejects.toThrow(
-        /Last pending index.*is lower than or equal to last finalized index/,
-      );
     });
   });
 

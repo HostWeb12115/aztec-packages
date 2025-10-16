@@ -44,6 +44,9 @@ export class SenderTaggingDataProvider {
    * @throws If a secret + txHash pair already exists in the db with a different index value. It should never happen
    * that we would attempt to store a different index for a given secret-txHash pair because we always store just the
    * highest index for a given secret-txHash pair. Hence this is a good way to catch bugs.
+   * @throws If the newly stored pending index is lower than or equal to the last finalized index for the same secret.
+   * This is enforced because this should never happen if the syncing is done correctly as we look for logs from higher
+   * indexes than finalized ones.
    */
   async storePendingIndexes(preTags: PreTag[], txHash: TxHash) {
     // The secrets in pre-tags should be unique because we always store just the highest index per given secret-txHash
@@ -56,6 +59,15 @@ export class SenderTaggingDataProvider {
     for (const { secret, index } of preTags) {
       const secretStr = secret.toString();
       const existing = (await this.#pendingIndexes.getAsync(secretStr)) ?? [];
+
+      // Throw if the new pending index is lower than or equal to the last finalized index
+      const lastFinalizedIndex = await this.#lastFinalizedIndexes.getAsync(secretStr);
+      if (lastFinalizedIndex !== undefined && index <= lastFinalizedIndex) {
+        throw new Error(
+          `Cannot store pending index ${index} for secret ${secretStr}: ` +
+            `it is lower than or equal to the last finalized index ${lastFinalizedIndex}`,
+        );
+      }
 
       // Check if this secret + txHash combination already exists
       const existingEntry = existing.find(entry => entry.txHash === txHash.toString());
@@ -112,7 +124,6 @@ export class SenderTaggingDataProvider {
    * indexes.
    * @param secret - The directional app tagging secret to query the last used index for.
    * @returns The last used index.
-   * @throws If the last pending index is less than or equal to the last finalized index, which indicates a bug.
    */
   async getLastUsedIndex(secret: DirectionalAppTaggingSecret): Promise<number | undefined> {
     const lastFinalizedIndex = await this.#lastFinalizedIndexes.getAsync(secret.toString());
@@ -123,14 +134,9 @@ export class SenderTaggingDataProvider {
       return lastFinalizedIndex;
     }
 
-    const lastPendingIndex = Math.max(...pendingIndexes);
-    if (lastFinalizedIndex !== undefined && lastPendingIndex <= lastFinalizedIndex) {
-      throw new Error(
-        `Last pending index ${lastPendingIndex} is lower than or equal to last finalized index ${lastFinalizedIndex}. This is a bug!`,
-      );
-    }
-
-    return lastPendingIndex;
+    // As the last used index we return the highest one from the pending indexes. Note that this might not technically
+    // be the last used index in case we sent logs from multiple PXEs in parallel but that's just a detail.
+    return Math.max(...pendingIndexes);
   }
 
   /**
