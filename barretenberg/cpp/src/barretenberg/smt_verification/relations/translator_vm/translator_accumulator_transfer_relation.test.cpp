@@ -8,7 +8,11 @@
 using namespace bb;
 using namespace translator_relation_test_helpers;
 
-// Verify that accumulator limbs transfer correctly between rows based on selector values
+/**
+ * Verify that accumulator limbs transfer correctly between rows based on selector values
+ *
+ * Runtime: ~420ms
+ */
 TEST(TranslatorAccumulatorTransferRelation, accumulator_transfer_logic)
 {
     smt_solver::Solver s(BN254_MODULUS, smt_solver::default_solver_config);

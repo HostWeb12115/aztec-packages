@@ -8,7 +8,11 @@ using namespace bb;
 using namespace smt_solver;
 using namespace smt_terms;
 
-// Test that the ECCVM bools relation correctly enforces boolean constraints on all 19 boolean polynomials
+/**
+ * Test that the ECCVM bools relation correctly enforces boolean constraints on all 19 boolean polynomials
+ *
+ * Runtime: ~65ms
+ */
 TEST(ECCVMBoolsRelation, EnforcesBooleanConstraintsOnAllPolynomials)
 {
     const char* modulus = "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001";
