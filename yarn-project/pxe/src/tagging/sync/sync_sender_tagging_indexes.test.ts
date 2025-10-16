@@ -7,8 +7,8 @@ import { TxHash, TxStatus } from '@aztec/stdlib/tx';
 
 import { type MockProxy, mock } from 'jest-mock-extended';
 
-import { SenderTaggingDataProvider } from '../storage/tagging_data_provider/sender_tagging_data_provider.js';
-import { DirectionalAppTaggingSecret, SiloedTag, Tag } from './index.js';
+import { SenderTaggingDataProvider } from '../../storage/tagging_data_provider/sender_tagging_data_provider.js';
+import { DirectionalAppTaggingSecret, SiloedTag, Tag } from '../index.js';
 import { WINDOW_LEN, syncSenderTaggingIndexes } from './sync_sender_tagging_indexes.js';
 
 describe('syncSenderTaggingIndexes', () => {

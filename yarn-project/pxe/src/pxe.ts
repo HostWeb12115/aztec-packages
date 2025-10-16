@@ -78,7 +78,7 @@ import { SyncDataProvider } from './storage/sync_data_provider/sync_data_provide
 import { RecipientTaggingDataProvider } from './storage/tagging_data_provider/recipient_tagging_data_provider.js';
 import { SenderTaggingDataProvider } from './storage/tagging_data_provider/sender_tagging_data_provider.js';
 import { Synchronizer } from './synchronizer/index.js';
-import { WINDOW_LEN as SENDER_TAGGING_INDEXES_SYNC_WINDOW_LEN } from './tagging/sync_sender_tagging_indexes.js';
+import { WINDOW_LEN as SENDER_TAGGING_INDEXES_SYNC_WINDOW_LEN } from './tagging/sync/sync_sender_tagging_indexes.js';
 
 /**
  * Private eXecution Environment (PXE) is a library used by wallets to simulate private phase of transactions and to

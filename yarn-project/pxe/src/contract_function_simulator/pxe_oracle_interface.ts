@@ -49,7 +49,7 @@ import {
   getInitialIndexesMap,
   getPreTagsForTheWindow,
 } from '../tagging/index.js';
-import { syncSenderTaggingIndexes } from '../tagging/sync_sender_tagging_indexes.js';
+import { syncSenderTaggingIndexes } from '../tagging/sync/sync_sender_tagging_indexes.js';
 import { EventValidationRequest } from './noir-structs/event_validation_request.js';
 import { LogRetrievalRequest } from './noir-structs/log_retrieval_request.js';
 import { LogRetrievalResponse } from './noir-structs/log_retrieval_response.js';
