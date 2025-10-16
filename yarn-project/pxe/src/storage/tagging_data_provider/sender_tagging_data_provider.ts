@@ -141,8 +141,8 @@ export class SenderTaggingDataProvider {
 
   /**
    * A tx that contained private logs with tags corresponding to some of the indexes returned from this data provider
-   * has been dropped so we delete the corresponding pending index. This results in the index being reused which
-   * result in tx linkability but we do not worry about that for now.
+   * has been dropped so we delete the corresponding pending indexes. This results in the indexes being reused which
+   * results in the txs that reused the indexes to be linked with the dropped tx. We don't worry about that for now.
    * @param txHash - The hash of the tx to drop the pending indexes for.
    */
   async dropPendingIndexes(txHash: TxHash) {
@@ -155,11 +155,11 @@ export class SenderTaggingDataProvider {
         const filtered = pendingData.filter(item => item.txHash.toString() !== txHashStr);
         if (filtered.length === 0) {
           await this.#pendingIndexes.delete(secret);
-        } else if (filtered.length > 1) {
-          throw new Error(`Multiple pending indexes found for tx hash ${txHashStr} and secret ${secret}`);
-        } else {
-          // No index found for this tx hash and secret pair --> this is a no-op
+        } else if (filtered.length !== pendingData.length) {
+          // Some items were filtered out, so update the pending data
+          await this.#pendingIndexes.set(secret, filtered);
         }
+        // else: No items were filtered out (txHash not found for this secret) --> no-op
       }
     }
   }
