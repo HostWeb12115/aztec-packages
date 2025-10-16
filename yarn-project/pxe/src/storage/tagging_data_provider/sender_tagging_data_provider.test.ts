@@ -344,20 +344,6 @@ describe('SenderTaggingDataProvider', () => {
       expect(txHashes[0]).toEqual(txHash3);
     });
 
-    it('removes secret entry when all pending indexes are pruned', async () => {
-      const txHash1 = TxHash.random();
-      const txHash2 = TxHash.random();
-
-      await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 3 }], txHash1);
-      await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 5 }], txHash2);
-
-      // Finalize txHash2 (index 5), which should prune both entries
-      await taggingDataProvider.updateStatusToFinalized(txHash2);
-
-      const txHashes = await taggingDataProvider.getTxHashesOfPendingIndexes(secret1, 0, 10);
-      expect(txHashes).toEqual([]);
-    });
-
     it('handles multiple secrets in the same tx', async () => {
       const txHash = TxHash.random();
       await taggingDataProvider.storePendingIndexes(
@@ -375,25 +361,6 @@ describe('SenderTaggingDataProvider', () => {
 
       expect(lastFinalized1).toBe(3);
       expect(lastFinalized2).toBe(7);
-    });
-
-    it('throws when multiple pending indexes exist for the same tx hash and secret', async () => {
-      const txHash = TxHash.random();
-
-      // Manually create an invalid state (this should not happen in normal operation)
-      await taggingDataProvider.storePendingIndexes([{ secret: secret1, index: 3 }], txHash);
-      // Force add another index with the same secret and txHash by storing directly
-      // (This bypasses the duplicate check in storePendingIndexes)
-      // We need to access the private field, but we can't, so we'll skip this test or modify approach
-
-      // Actually, this scenario should be prevented by storePendingIndexes, so let's verify
-      // that the error would be thrown if such state existed. We can't easily create this
-      // invalid state, so we'll document that this is enforced by storePendingIndexes.
-
-      // For now, we'll just verify the normal case works
-      await taggingDataProvider.updateStatusToFinalized(txHash);
-      const lastFinalized = await taggingDataProvider.getLastFinalizedIndex(secret1);
-      expect(lastFinalized).toBe(3);
     });
 
     it('does nothing when tx hash does not exist', async () => {

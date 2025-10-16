@@ -348,15 +348,9 @@ export class PXEOracleInterface implements ExecutionDataProvider {
     await syncSenderTaggingIndexes(secret, contractAddress, this.aztecNode, this.senderTaggingDataProvider);
   }
 
-  /**
-   * Synchronizes the private logs tagged with scoped addresses and all the senders in the address book. Stores the found
-   * logs in CapsuleArray ready for a later retrieval in Aztec.nr.
-   * @param contractAddress - The address of the contract that the logs are tagged for.
-   * @param pendingTaggedLogArrayBaseSlot - The base slot of the pending tagged logs capsule array in which
-   * found logs will be stored.
-   * @param scopes - The scoped addresses to sync logs for. If not provided, all accounts in the address book will be
-   * synced.
-   */
+  // TODO(benesjan): Replace this implementation of this function with one implementing an approach similar
+  // to syncSenderTaggingIndexes. Not done yet due to re-prioritization to devex and this doesn't directly affect
+  // devex.
   public async syncTaggedLogs(
     contractAddress: AztecAddress,
     pendingTaggedLogArrayBaseSlot: Fr,
