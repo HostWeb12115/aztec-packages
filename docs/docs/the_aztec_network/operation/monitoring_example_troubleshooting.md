@@ -1,5 +1,5 @@
 ---
-sidebar_position: 4
+sidebar_position: 5
 title: Complete Example and Troubleshooting
 description: Complete Docker Compose example with all monitoring components and troubleshooting guide for common monitoring issues.
 ---
@@ -12,7 +12,7 @@ Here's a complete example with all monitoring components integrated with your Az
 services:
   # Your Aztec node (example for full node)
   aztec-node:
-    image: "aztecprotocol/aztec:#include_testnet_version"
+    image: "aztecprotocol/aztec:2.0.2"
     container_name: "aztec-node"
     ports:
       - ${AZTEC_PORT}:${AZTEC_PORT}
@@ -51,9 +51,9 @@ services:
       - 4317:4317
       - 4318:4318
     volumes:
-      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+      - ./otel-collector-config.yml:/etc/otel-collector-config.yml
     command: >-
-      --config=/etc/otel-collector-config.yaml
+      --config=/etc/otel-collector-config.yml
     networks:
       - aztec
     restart: always
@@ -114,10 +114,10 @@ This configuration includes:
 **Issue**: No metrics showing in Prometheus or Grafana.
 
 **Solutions**:
-- Verify OTEL collector is running: `docker compose ps otel-collector`
+- Verify the OTEL collector is running: `docker compose ps otel-collector`
 - Check OTEL collector logs: `docker compose logs otel-collector`
-- Verify node is configured with correct OTEL endpoints
-- Test OTEL collector endpoint: `curl http://localhost:8889/metrics`
+- Verify your node is configured with the correct OTEL endpoints
+- Test the OTEL collector endpoint: `curl http://localhost:8889/metrics`
 - Ensure all containers are on the same Docker network
 
 ### Prometheus target down
@@ -125,9 +125,9 @@ This configuration includes:
 **Issue**: Prometheus shows target as "down" in Status → Targets.
 
 **Solutions**:
-- Verify OTEL collector is running and exposing port 8889
-- Check Prometheus configuration in `prometheus.yml`
-- Ensure target address is correct (use service name if in same Docker network)
+- Verify the OTEL collector is running and exposing port 8889
+- Check the Prometheus configuration in `prometheus.yml`
+- Ensure the target address is correct (use service name if in the same Docker network)
 - Review Prometheus logs: `docker compose logs prometheus`
 
 ### Grafana cannot connect to Prometheus
@@ -136,8 +136,8 @@ This configuration includes:
 
 **Solutions**:
 - Verify Prometheus is running: `docker compose ps prometheus`
-- Check data source URL in Grafana (should be `http://prometheus:9090`)
-- Test Prometheus endpoint: `curl http://localhost:9090/api/v1/query?query=up`
+- Check the data source URL in Grafana (should be `http://prometheus:9090`)
+- Test the Prometheus endpoint: `curl http://localhost:9090/api/v1/query?query=up`
 - Ensure Grafana and Prometheus are on the same Docker network
 
 ## Next Steps
