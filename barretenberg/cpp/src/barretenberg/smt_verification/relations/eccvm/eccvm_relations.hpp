@@ -55,4 +55,27 @@ void replay_eccvm_wnaf_relation(const smt_relation_recorder::OperationTrace& tra
                                 std::vector<smt_terms::STerm>& out_vars,
                                 std::vector<std::string>& out_names);
 
+/**
+ * @brief Record the ECCVM MSM relation operations
+ */
+smt_relation_recorder::OperationTrace record_eccvm_msm_relation();
+
+/**
+ * @brief Replay a recorded ECCVM MSM relation on a specific solver
+ * @param trace The recorded operation trace
+ * @param solver The SMT solver to use
+ * @param prefix Optional prefix for variable names
+ * @param use_ffi Whether to use FFI terms (true) or FF terms (false)
+ * @param out_formulas Output vector for the relation formulas
+ * @param out_vars Output vector for all variables created
+ * @param out_names Output vector for the variable names
+ */
+void replay_eccvm_msm_relation(const smt_relation_recorder::OperationTrace& trace,
+                               smt_solver::Solver* solver,
+                               const std::string& prefix,
+                               bool use_ffi,
+                               std::vector<smt_terms::STerm>& out_formulas,
+                               std::vector<smt_terms::STerm>& out_vars,
+                               std::vector<std::string>& out_names);
+
 } // namespace smt_eccvm_relations

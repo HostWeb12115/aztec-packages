@@ -32,7 +32,8 @@ enum class OpKind {
     ADD,      // Addition
     SUB,      // Subtraction
     MUL,      // Multiplication
-    NEG       // Negation
+    NEG,      // Negation
+    INV       // Inversion
 };
 
 /**
@@ -160,7 +161,8 @@ class RecordingFF {
     {}
 
     // Single-argument constructor from uint256_t (for relation constants)
-    explicit RecordingFF(const uint256_t& val)
+    // Non-explicit to allow implicit conversion from uint256_t constants in relations
+    RecordingFF(const uint256_t& val)
         : trace(default_trace ? default_trace : std::make_shared<OperationTrace>())
         , operation_id(std::nullopt)
         , is_constant(true)
@@ -311,6 +313,16 @@ class RecordingFF {
 
     RecordingFF sqr() const { return *this * *this; }
 
+    RecordingFF invert() const
+    {
+        if (is_constant) {
+            return RecordingFF(trace, constant_value.invert());
+        }
+
+        size_t result_id_local = trace->record_unary_op(OpKind::INV, operation_id.value());
+        return RecordingFF(trace, result_id_local, OperationIdTag{});
+    }
+
     RecordingFF operator-() const
     {
         if (is_constant) {
@@ -381,6 +393,86 @@ template <size_t LEN> struct RecordingAccumulator {
     {
         val = val + x;
         return *this;
+    }
+
+    template <size_t OTHER_LEN> RecordingAccumulator& operator+=(const RecordingAccumulator<OTHER_LEN>& other)
+    {
+        val = val + other.val;
+        return *this;
+    }
+
+    // Arithmetic operations with RecordingFF
+    RecordingAccumulator operator*(const RecordingFF& x) const
+    {
+        RecordingAccumulator result;
+        result.val = val * x;
+        return result;
+    }
+
+    RecordingAccumulator operator+(const RecordingFF& x) const
+    {
+        RecordingAccumulator result;
+        result.val = val + x;
+        return result;
+    }
+
+    RecordingAccumulator operator-(const RecordingFF& x) const
+    {
+        RecordingAccumulator result;
+        result.val = val - x;
+        return result;
+    }
+
+    // Friend operators for reverse order operations
+    friend RecordingAccumulator operator*(const RecordingFF& x, const RecordingAccumulator& acc)
+    {
+        RecordingAccumulator result;
+        result.val = x * acc.val;
+        return result;
+    }
+
+    friend RecordingAccumulator operator+(const RecordingFF& x, const RecordingAccumulator& acc)
+    {
+        RecordingAccumulator result;
+        result.val = x + acc.val;
+        return result;
+    }
+
+    friend RecordingAccumulator operator-(const RecordingFF& x, const RecordingAccumulator& acc)
+    {
+        RecordingAccumulator result;
+        result.val = x - acc.val;
+        return result;
+    }
+
+    // Operations with other accumulators
+    RecordingAccumulator operator+(const RecordingAccumulator& other) const
+    {
+        RecordingAccumulator result;
+        result.val = val + other.val;
+        return result;
+    }
+
+    RecordingAccumulator operator-(const RecordingAccumulator& other) const
+    {
+        RecordingAccumulator result;
+        result.val = val - other.val;
+        return result;
+    }
+
+    RecordingAccumulator operator*(const RecordingAccumulator& other) const
+    {
+        RecordingAccumulator result;
+        result.val = val * other.val;
+        return result;
+    }
+
+    // Unary negation
+    RecordingAccumulator operator-() const
+    {
+        RecordingAccumulator result;
+        result.val = -val;
+        return result;
     }
 };
 

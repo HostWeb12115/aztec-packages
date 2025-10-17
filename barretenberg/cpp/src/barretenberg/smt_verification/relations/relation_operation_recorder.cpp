@@ -70,6 +70,19 @@ std::vector<smt_terms::STerm> OperationReplayer::replay(
             break;
         }
 
+        case OpKind::INV: {
+            const auto& operand = results.at(op.lhs_id);
+            // Inversion is represented as 1 / x
+            STerm one;
+            if (is_ffi) {
+                one = STerm(bb::fr(1), solver, TermType::FFITerm);
+            } else {
+                one = STerm(bb::fr(1), solver, TermType::FFTerm);
+            }
+            result = one / operand;
+            break;
+        }
+
         default:
             throw std::runtime_error("Unknown operation kind in replay");
         }
