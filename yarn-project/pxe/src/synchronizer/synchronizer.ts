@@ -66,7 +66,8 @@ export class Synchronizer implements L2BlockStreamEventHandler {
         // Remove all note tagging indexes to force a full resync. This is suboptimal, but unless we track the
         // block number in which each index is used it's all we can do.
         // Note: This is now unnecessary for the sender tagging data provider because the new algorithm handles reorgs.
-        // TODO(#17775): Drop this on recipient tagging algo refactor.
+        // TODO(#17775): Once this issue is implemented we will have the index-block number mapping, so we can
+        // implement this more intelligently.
         await this.recipientTaggingDataProvider.resetNoteSyncData();
         // Update the header to the last block.
         const newHeader = await this.node.getBlockHeader(event.block.number);
