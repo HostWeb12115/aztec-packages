@@ -796,19 +796,59 @@ export async function getL1DeploymentAddresses(env: TestConfig): Promise<L1Contr
  *        This is useful for testing, but you should be aware of the implications.
  */
 export async function rollAztecPods(namespace: string) {
-  await deleteResourceByLabel({ resource: 'pods', namespace: namespace, label: 'app=boot-node' });
-  await deleteResourceByLabel({ resource: 'pods', namespace: namespace, label: 'app=prover-node' });
-  await deleteResourceByLabel({ resource: 'pods', namespace: namespace, label: 'app=prover-broker' });
-  await deleteResourceByLabel({ resource: 'pods', namespace: namespace, label: 'app=prover-agent' });
-  await deleteResourceByLabel({ resource: 'pods', namespace: namespace, label: 'app=validator' });
-  await deleteResourceByLabel({ resource: 'pods', namespace: namespace, label: 'app=pxe' });
+  await deleteResourceByLabel({
+    resource: 'pods',
+    namespace: namespace,
+    label: 'app.kubernetes.io/component=p2p-bootstrap',
+  });
+  await deleteResourceByLabel({
+    resource: 'pods',
+    namespace: namespace,
+    label: 'app.kubernetes.io/component=prover-node',
+  });
+  await deleteResourceByLabel({
+    resource: 'pods',
+    namespace: namespace,
+    label: 'app.kubernetes.io/component=prover-broker',
+  });
+  await deleteResourceByLabel({
+    resource: 'pods',
+    namespace: namespace,
+    label: 'app.kubernetes.io/component=prover-agent',
+  });
+  await deleteResourceByLabel({
+    resource: 'pods',
+    namespace: namespace,
+    label: 'app.kubernetes.io/component=validator',
+  });
+  await deleteResourceByLabel({ resource: 'pods', namespace: namespace, label: 'app.kubernetes.io/component=rpc' });
   await sleep(10 * 1000);
-  await waitForResourceByLabel({ resource: 'pods', namespace: namespace, label: 'app=boot-node' });
-  await waitForResourceByLabel({ resource: 'pods', namespace: namespace, label: 'app=prover-node' });
-  await waitForResourceByLabel({ resource: 'pods', namespace: namespace, label: 'app=prover-broker' });
-  await waitForResourceByLabel({ resource: 'pods', namespace: namespace, label: 'app=prover-agent' });
-  await waitForResourceByLabel({ resource: 'pods', namespace: namespace, label: 'app=validator' });
-  await waitForResourceByLabel({ resource: 'pods', namespace: namespace, label: 'app=pxe' });
+  await waitForResourceByLabel({
+    resource: 'pods',
+    namespace: namespace,
+    label: 'app.kubernetes.io/component=p2p-bootstrap',
+  });
+  await waitForResourceByLabel({
+    resource: 'pods',
+    namespace: namespace,
+    label: 'app.kubernetes.io/component=prover-node',
+  });
+  await waitForResourceByLabel({
+    resource: 'pods',
+    namespace: namespace,
+    label: 'app.kubernetes.io/component=prover-broker',
+  });
+  await waitForResourceByLabel({
+    resource: 'pods',
+    namespace: namespace,
+    label: 'app.kubernetes.io/component=prover-agent',
+  });
+  await waitForResourceByLabel({
+    resource: 'pods',
+    namespace: namespace,
+    label: 'app.kubernetes.io/component=validator',
+  });
+  await waitForResourceByLabel({ resource: 'pods', namespace: namespace, label: 'app.kubernetes.io/component=rpc' });
 }
 
 /**
