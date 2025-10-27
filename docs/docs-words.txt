@@ -264,6 +264,7 @@ Returndata
 revertdata
 rollupʼs
 RSSH
+rustc
 sendl
 SENDL
 serde
