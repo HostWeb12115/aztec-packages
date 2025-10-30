@@ -6,8 +6,8 @@
     ".": "./dest/index.js"
   },
   "scripts": {
-    "build": "yarn clean && yarn generate && tsc -b",
-    "build:dev": "tsc -b --watch",
+    "build": "yarn clean && yarn generate && tsgo -b",
+    "build:dev": "tsgo -b --watch",
     "build:cpp": "PROJECT=$(pwd); cd $(git rev-parse --show-toplevel)/barretenberg/cpp; cmake --preset ${PRESET:-clang16-pic} && cmake --build --preset ${PRESET:-clang16-pic} --target nodejs_module && cd $PROJECT && yarn generate",
     "clean:cpp": "rm -rf $(git rev-parse --show-toplevel)/barretenberg/cpp/build-pic",
     "clean": "rm -rf ./dest .tsbuildinfo",

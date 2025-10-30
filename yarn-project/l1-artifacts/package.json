@@ -12,7 +12,7 @@
     "tsconfig": "./tsconfig.json"
   },
   "scripts": {
-    "build": "yarn clean && yarn generate && tsc -b",
+    "build": "yarn clean && yarn generate && tsgo -b",
     "clean": "rm -rf ./dest ./generated .tsbuildinfo",
     "formatting": "run -T prettier --check ./generated && run -T eslint ./generated",
     "formatting:fix": "run -T prettier -w ./generated",

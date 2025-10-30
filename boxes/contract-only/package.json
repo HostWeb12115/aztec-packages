@@ -8,7 +8,7 @@
     "compile": "cd src && ${AZTEC_NARGO:-aztec-nargo} compile && ${AZTEC_POSTPROCESS_CONTRACT:-aztec-postprocess-contract}",
     "codegen": "${AZTEC_BUILDER:-aztec-builder} codegen target -o artifacts",
     "clean": "rm -rf ./dest .tsbuildinfo ./artifacts ./target",
-    "prep": "yarn clean && yarn compile && yarn codegen && tsc -b",
+    "prep": "yarn clean && yarn compile && yarn codegen && tsgo -b",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --runInBand",
     "formatting": "prettier --check ./src && eslint ./src",
     "formatting:fix": "prettier -w ./src"

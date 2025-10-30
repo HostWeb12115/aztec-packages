@@ -7,7 +7,7 @@
   "scripts": {
     "clean": "rm -rf ./dist .tsbuildinfo",
     "serve": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsgo -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",

@@ -8,7 +8,7 @@
     "codegen": "${AZTEC_BUILDER:-aztec} codegen src/contracts/target -o artifacts",
     "clean": "rm -rf ./dist .tsbuildinfo ./codegenCache.json ./artifacts ./src/contracts/target",
     "prep": "yarn clean && yarn compile && yarn codegen",
-    "build": "yarn prep && tsc -b && vite build",
+    "build": "yarn prep && tsgo -b && vite build",
     "serve": "vite",
     "test": "playwright test",
     "formatting": "prettier --check ./src && eslint ./src",

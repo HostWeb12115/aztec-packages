@@ -3,7 +3,7 @@
   "packageManager": "yarn@4.5.2",
   "main": "dest/index.js",
   "scripts": {
-    "build": "tsc"
+    "build": "tsgo"
   },
   "dependencies": {
     "@aztec/bb.js": "portal:../../ts",
