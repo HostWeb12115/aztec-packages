@@ -17,8 +17,8 @@
     "aztec-builder": "dest/bin/cli.js"
   },
   "scripts": {
-    "build": "yarn clean && tsc -b",
-    "build:dev": "tsc -b --watch",
+    "build": "yarn clean && tsgo -b",
+    "build:dev": "tsgo -b --watch",
     "generate": "tsc -b",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --passWithNoTests --maxWorkers=${JEST_MAX_WORKERS:-8}"

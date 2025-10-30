@@ -20,7 +20,7 @@
     "test:browser": "./run_browser_tests.sh",
     "test": "yarn test:non-browser",
     "codegen": "yarn noir-codegen",
-    "build:dev": "tsc -b --watch",
+    "build:dev": "tsgo -b --watch",
     "build:browser-app": "rm -rf dest && webpack",
     "serve": "serve -n -L -p 8080 -c ../serve.mt.json dest"
   },

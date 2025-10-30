@@ -11,8 +11,8 @@
     "tsconfig": "./tsconfig.json"
   },
   "scripts": {
-    "build": "yarn clean && tsc -b",
-    "build:dev": "tsc -b --watch",
+    "build": "yarn clean && tsgo -b",
+    "build:dev": "tsgo -b --watch",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "start:dev": "tsc-watch -p tsconfig.json --onSuccess 'yarn start'",
     "start": "node ./dest/index.js",
