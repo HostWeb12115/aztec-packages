@@ -24,7 +24,7 @@
     "clean": "rm -rf ./dest .tsbuildinfo",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --passWithNoTests --maxWorkers=${JEST_MAX_WORKERS:-8}",
     "start": "node ./dest",
-    "start:dev": "tsc-watch -p tsconfig.json --onSuccess 'yarn start'"
+    "start:dev": "concurrently -k \"tsgo -b -w\" \"nodemon --watch dest --exec yarn start\""
   },
   "inherits": [
     "../package.common.json"

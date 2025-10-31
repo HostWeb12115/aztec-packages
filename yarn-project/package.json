@@ -72,9 +72,11 @@
     "@swc/jest": "^0.2.36",
     "@trivago/prettier-plugin-sort-imports": "^5.2.2",
     "@typescript/native-preview": "7.0.0-dev.20251030.1",
+    "concurrently": "^9.1.2",
     "eslint": "^9.26.0",
     "eslint-import-resolver-typescript": "^3.5.5",
     "eslint-plugin-import": "^2.31.0",
+    "nodemon": "^3.1.9",
     "prettier": "^3.5.3",
     "typedoc": "^0.24.8",
     "typescript": "^5.3.3"
