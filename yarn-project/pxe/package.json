@@ -89,6 +89,7 @@
     "@types/lodash.omit": "^4.5.7",
     "@types/lodash.times": "^4.3.9",
     "@types/node": "^22.15.17",
+    "@typescript/native-preview": "7.0.0-dev.20251030.1",
     "jest": "^30.0.0",
     "jest-mock-extended": "^4.0.0",
     "lodash.times": "^4.3.2",

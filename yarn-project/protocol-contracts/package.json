@@ -86,6 +86,7 @@
     "@types/lodash.chunk": "^4.2.9",
     "@types/lodash.omit": "^4.5.9",
     "@types/node": "^22.15.17",
+    "@typescript/native-preview": "7.0.0-dev.20251030.1",
     "jest": "^30.0.0",
     "jest-mock-extended": "^4.0.0",
     "ts-loader": "^9.5.4",

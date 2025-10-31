@@ -109,6 +109,7 @@
     "@jest/globals": "^30.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.15.17",
+    "@typescript/native-preview": "7.0.0-dev.20251030.1",
     "get-port": "^7.1.0",
     "it-drain": "^3.0.5",
     "it-length": "^3.0.6",
