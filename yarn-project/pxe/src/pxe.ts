@@ -9,11 +9,10 @@ import { type ProtocolContractsProvider, protocolContractNames } from '@aztec/pr
 import type { CircuitSimulator } from '@aztec/simulator/client';
 import {
   type ContractArtifact,
-  type EventMetadataDefinition,
+  EventSelector,
   FunctionCall,
   FunctionSelector,
   FunctionType,
-  decodeFromAbi,
   decodeFunctionSignature,
   encodeArguments,
 } from '@aztec/stdlib/abi';
@@ -1073,13 +1072,13 @@ export class PXE {
    * @param recipients - The addresses that decrypted the logs.
    * @returns - The deserialized events.
    */
-  public async getPrivateEvents<T>(
+  public async getPrivateEvents(
     contractAddress: AztecAddress,
-    eventMetadataDef: EventMetadataDefinition,
+    eventSelector: EventSelector,
     from: number,
     numBlocks: number,
     recipients: AztecAddress[],
-  ): Promise<T[]> {
+  ): Promise<PrivateEvent[]> {
     if (recipients.length === 0) {
       throw new Error('Recipients are required to get private events');
     }
@@ -1089,19 +1088,7 @@ export class PXE {
     // We need to manually trigger private state sync to have a guarantee that all the events are available.
     await this.simulateUtility('sync_private_state', [], contractAddress);
 
-    const events = await this.privateEventDataProvider.getPrivateEvents(
-      contractAddress,
-      from,
-      numBlocks,
-      recipients,
-      eventMetadataDef.eventSelector,
-    );
-
-    const decodedEvents = events.map(
-      (event: PrivateEvent): T => decodeFromAbi([eventMetadataDef.abiType], event.msgContent) as T,
-    );
-
-    return decodedEvents;
+    return this.privateEventDataProvider.getPrivateEvents(contractAddress, from, numBlocks, recipients, eventSelector);
   }
 
   /**
