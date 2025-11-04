@@ -9,7 +9,7 @@ import type { ChainInfo } from '@aztec/entrypoints/interfaces';
 import { ExecutionPayload, mergeExecutionPayloads } from '@aztec/entrypoints/payload';
 import { Fr } from '@aztec/foundation/fields';
 import { createLogger } from '@aztec/foundation/log';
-import type { ContractArtifact, EventMetadataDefinition } from '@aztec/stdlib/abi';
+import { type ContractArtifact, type EventMetadataDefinition, decodeFromAbi } from '@aztec/stdlib/abi';
 import type { AuthWitness } from '@aztec/stdlib/auth-witness';
 import type { AztecAddress } from '@aztec/stdlib/aztec-address';
 import {
@@ -22,6 +22,7 @@ import {
   getContractInstanceFromInstantiationParams,
 } from '@aztec/stdlib/contract';
 import { SimulationError } from '@aztec/stdlib/errors';
+import type { PrivateEvent } from '@aztec/stdlib/events';
 import { Gas, GasSettings } from '@aztec/stdlib/gas';
 import type { AztecNode } from '@aztec/stdlib/interfaces/client';
 import type {
@@ -338,13 +339,19 @@ export abstract class BaseWallet implements Wallet {
     return this.aztecNode.getTxReceipt(txHash);
   }
 
-  getPrivateEvents<T>(
+  async getPrivateEvents<T>(
     contractAddress: AztecAddress,
-    event: EventMetadataDefinition,
+    eventDef: EventMetadataDefinition,
     from: number,
     limit: number,
     recipients: AztecAddress[] = [],
   ): Promise<T[]> {
-    return this.pxe.getPrivateEvents(contractAddress, event, from, limit, recipients);
+    const events = await this.pxe.getPrivateEvents(contractAddress, eventDef.eventSelector, from, limit, recipients);
+
+    const decodedEvents = events.map(
+      (event: PrivateEvent): T => decodeFromAbi([eventDef.abiType], event.msgContent) as T,
+    );
+
+    return decodedEvents;
   }
 }

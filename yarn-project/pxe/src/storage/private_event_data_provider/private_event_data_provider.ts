@@ -5,6 +5,7 @@ import type { AztecAsyncArray, AztecAsyncKVStore, AztecAsyncMap } from '@aztec/k
 import type { EventSelector } from '@aztec/stdlib/abi';
 import type { AztecAddress } from '@aztec/stdlib/aztec-address';
 import { L2BlockHash } from '@aztec/stdlib/block';
+import type { PrivateEvent } from '@aztec/stdlib/events';
 import { TxHash } from '@aztec/stdlib/tx';
 
 interface PrivateEventEntry {
@@ -14,14 +15,6 @@ interface PrivateEventEntry {
   eventCommitmentIndex: number;
   txHash: Buffer;
 }
-
-export type PrivateEvent = {
-  msgContent: Fr[];
-  blockNumber: number;
-  blockHash: L2BlockHash;
-  txHash: TxHash;
-  recipient: AztecAddress;
-};
 
 /**
  * Stores decrypted private event logs.
