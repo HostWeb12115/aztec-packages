@@ -28,7 +28,7 @@ import {
   getContractClassFromArtifact,
 } from '@aztec/stdlib/contract';
 import { SimulationError } from '@aztec/stdlib/errors';
-import { siloNullifier } from '@aztec/stdlib/hash';
+import { computeProtocolNullifier, siloNullifier } from '@aztec/stdlib/hash';
 import type { AztecNode, PrivateKernelProver } from '@aztec/stdlib/interfaces/client';
 import type {
   PrivateExecutionStep,
@@ -73,7 +73,10 @@ import { AddressDataProvider } from './storage/address_data_provider/address_dat
 import { CapsuleDataProvider } from './storage/capsule_data_provider/capsule_data_provider.js';
 import { ContractDataProvider } from './storage/contract_data_provider/contract_data_provider.js';
 import { NoteDataProvider } from './storage/note_data_provider/note_data_provider.js';
-import { PrivateEventDataProvider } from './storage/private_event_data_provider/private_event_data_provider.js';
+import {
+  type PrivateEvent,
+  PrivateEventDataProvider,
+} from './storage/private_event_data_provider/private_event_data_provider.js';
 import { SyncDataProvider } from './storage/sync_data_provider/sync_data_provider.js';
 import { TaggingDataProvider } from './storage/tagging_data_provider/tagging_data_provider.js';
 import { Synchronizer } from './synchronizer/index.js';
@@ -905,10 +908,9 @@ export class PXE {
 
         if (skipKernels) {
           // According to the protocol rules, the nonce generator for the note hashes
-          // can either be the first nullifier in the tx or the hash of the initial tx request
-          // if there are none.
+          // can either be the first nullifier in the tx or the protocol nullifier if there are none.
           const nonceGenerator = privateExecutionResult.firstNullifier.equals(Fr.ZERO)
-            ? await txRequest.toTxRequest().hash()
+            ? await computeProtocolNullifier(await txRequest.toTxRequest().hash())
             : privateExecutionResult.firstNullifier;
           ({ publicInputs, executionSteps } = await generateSimulatedProvingResult(
             privateExecutionResult,
@@ -1094,7 +1096,9 @@ export class PXE {
       eventMetadataDef.eventSelector,
     );
 
-    const decodedEvents = events.map((event: Fr[]): T => decodeFromAbi([eventMetadataDef.abiType], event) as T);
+    const decodedEvents = events.map(
+      (event: PrivateEvent): T => decodeFromAbi([eventMetadataDef.abiType], event.msgContent) as T,
+    );
 
     return decodedEvents;
   }

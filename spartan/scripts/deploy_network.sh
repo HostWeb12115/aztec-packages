@@ -108,9 +108,14 @@ DESTROY_CHAOS_MESH=${DESTROY_CHAOS_MESH:-false}
 CREATE_CHAOS_MESH=${CREATE_CHAOS_MESH:-false}
 
 
-# Compute validator addresses
-VALIDATOR_ADDRESSES=$(echo "$VALIDATOR_INDICES" | tr ',' '\n' | xargs -I{} cast wallet address --mnemonic "$LABS_INFRA_MNEMONIC" --mnemonic-index {} | tr '\n' ',' | sed 's/,$//')
-log "VALIDATOR_ADDRESSES: ${VALIDATOR_ADDRESSES}"
+# Compute validator addresses (skip if no validators)
+if [[ $VALIDATOR_REPLICAS -gt 0 ]]; then
+  VALIDATOR_ADDRESSES=$(echo "$VALIDATOR_INDICES" | tr ',' '\n' | xargs -I{} cast wallet address --mnemonic "$LABS_INFRA_MNEMONIC" --mnemonic-index {} | tr '\n' ',' | sed 's/,$//')
+  log "VALIDATOR_ADDRESSES: ${VALIDATOR_ADDRESSES}"
+else
+  VALIDATOR_ADDRESSES=""
+  log "VALIDATOR_ADDRESSES: (none - no validators)"
+fi
 
 # Compute and include publisher indices in prefunding list
 # Uses env overrides when provided, otherwise falls back to values.yaml defaults
@@ -385,6 +390,10 @@ PROVER_REPLICAS = ${PROVER_REPLICAS}
 
 PROVER_NODE_DISABLE_PROOF_PUBLISH = ${PROVER_NODE_DISABLE_PROOF_PUBLISH}
 P2P_TX_POOL_DELETE_TXS_AFTER_REORG = ${P2P_TX_POOL_DELETE_TXS_AFTER_REORG}
+VALIDATOR_L1_PRIORITY_FEE_BUMP_PERCENTAGE = ${VALIDATOR_L1_PRIORITY_FEE_BUMP_PERCENTAGE:-null}
+VALIDATOR_L1_PRIORITY_FEE_RETRY_BUMP_PERCENTAGE = ${VALIDATOR_L1_PRIORITY_FEE_RETRY_BUMP_PERCENTAGE:-null}
+PROVER_L1_PRIORITY_FEE_BUMP_PERCENTAGE = ${PROVER_L1_PRIORITY_FEE_BUMP_PERCENTAGE:-null}
+PROVER_L1_PRIORITY_FEE_RETRY_BUMP_PERCENTAGE = ${PROVER_L1_PRIORITY_FEE_RETRY_BUMP_PERCENTAGE:-null}
 EOF
 
 tf_run "${DEPLOY_AZTEC_INFRA_DIR}" "${DESTROY_AZTEC_INFRA}" "${CREATE_AZTEC_INFRA}"
