@@ -225,7 +225,12 @@ function build {
     # Deletes all build dirs and build bb and wasms from scratch.
     rm -rf build*
   fi
+
   (cd $root && make barretenberg)
+
+  if semver check "$REF_NAME" && [[ "$(arch)" == "amd64" ]]; then
+    build_release_dir
+  fi
 }
 
 # Print every individual test command. Can be fed into gnu parallel.
