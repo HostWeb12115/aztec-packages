@@ -64,7 +64,7 @@ full: release-image barretenberg boxes playground docs spartan aztec-up \
 		  bb-full-tests l1-contracts-tests yarn-project-tests boxes-tests playground-tests aztec-up-tests docs-tests noir-protocol-circuits-tests
 
 # Release. Everything plus copy bb cross compiles to bb.js.
-release: full bb-ts-cross-copy yarn-project-cross-copy
+release: all bb-ts-cross-copy yarn-project-cross-copy
 
 #==============================================================================
 # Noir
