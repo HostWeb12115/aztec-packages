@@ -22,7 +22,6 @@ import {
   getContractInstanceFromInstantiationParams,
 } from '@aztec/stdlib/contract';
 import { SimulationError } from '@aztec/stdlib/errors';
-import type { PrivateEvent } from '@aztec/stdlib/events';
 import { Gas, GasSettings } from '@aztec/stdlib/gas';
 import type { AztecNode } from '@aztec/stdlib/interfaces/client';
 import type {
@@ -349,7 +348,7 @@ export abstract class BaseWallet implements Wallet {
     const events = await this.pxe.getPrivateEvents(contractAddress, eventDef.eventSelector, from, limit, recipients);
 
     const decodedEvents = events.map(
-      (event: PrivateEvent): T => decodeFromAbi([eventDef.abiType], event.msgContent) as T,
+      (event: any /** PrivateEvent */): T => decodeFromAbi([eventDef.abiType], event.msgContent) as T,
     );
 
     return decodedEvents;
