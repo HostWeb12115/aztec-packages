@@ -224,7 +224,10 @@ contract Tmnt207Test is RollupBase {
         start: 1,
         end: 1,
         args: PublicInputArgs({
-          previousArchive: rollup.getBlock(0).archive, endArchive: rollup.getBlock(1).archive, proverId: address(0)
+          previousArchive: rollup.getBlock(0).archive,
+          endArchive: rollup.getBlock(1).archive,
+          outHash: bytes32(0),
+          proverId: address(0)
         }),
         fees: new bytes32[](Constants.AZTEC_MAX_EPOCH_DURATION * 2),
         attestations: AttestationLibHelper.packAttestations(l2BlockReal.attestations),

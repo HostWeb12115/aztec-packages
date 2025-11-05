@@ -43,12 +43,9 @@ library Errors {
     uint32 storedDeadline,
     uint32 deadlinePassed
   ); // 0x5e789f34
-  error Outbox__RootAlreadySetAtBlock(uint256 l2BlockNumber); // 0x3eccfd3e
   error Outbox__InvalidRecipient(address expected, address actual); // 0x57aad581
-  error Outbox__AlreadyNullified(uint256 l2BlockNumber, uint256 leafIndex); // 0xfd71c2d4
-  error Outbox__NothingToConsumeAtBlock(uint256 l2BlockNumber); // 0xa4508f22
-  error Outbox__BlockNotProven(uint256 l2BlockNumber); // 0x0e194a6d
-  error Outbox__BlockAlreadyProven(uint256 l2BlockNumber);
+  error Outbox__AlreadyNullified(Epoch epoch, uint256 leafIndex); // 0xfd71c2d4
+  error Outbox__NothingToConsumeAtEpoch(Epoch epoch); // 0xa4508f22
   error Outbox__PathTooLong();
   error Outbox__LeafIndexOutOfBounds(uint256 leafIndex, uint256 pathLength);
 

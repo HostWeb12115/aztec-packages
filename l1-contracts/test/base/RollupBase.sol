@@ -68,8 +68,9 @@ contract RollupBase is DecoderBase {
 
     // What are these even?
     // ^ public inputs to the root proof?
-    PublicInputArgs memory args =
-      PublicInputArgs({previousArchive: parentBlockLog.archive, endArchive: endFull.block.archive, proverId: _prover});
+    PublicInputArgs memory args = PublicInputArgs({
+      previousArchive: parentBlockLog.archive, endArchive: endFull.block.archive, outHash: bytes32(0), proverId: _prover
+    });
 
     bytes32[] memory fees = new bytes32[](Constants.AZTEC_MAX_EPOCH_DURATION * 2);
 
@@ -154,7 +155,7 @@ contract RollupBase is DecoderBase {
     vm.warp(max(block.timestamp, Timestamp.unwrap(full.block.header.timestamp)));
 
     _populateInbox(full.populate.sender, full.populate.recipient, full.populate.l1ToL2Content);
-    full.block.header.contentCommitment.inHash = rollup.getInbox().getRoot(full.block.blockNumber);
+    full.block.header.inHash = rollup.getInbox().getRoot(full.block.blockNumber);
 
     {
       bytes32[] memory blobHashes;
@@ -202,45 +203,6 @@ contract RollupBase is DecoderBase {
 
     if (_revertMsg.length > 0) {
       return;
-    }
-
-    bytes32 l2ToL1MessageTreeRoot;
-    uint32 numTxs = full.block.numTxs;
-    if (numTxs != 0) {
-      // NB: The below works with full blocks because we require the largest possible subtrees
-      // for L2 to L1 messages - usually we make variable height subtrees, the roots of which
-      // form a balanced tree
-
-      // The below is a little janky - we know that this test deals with full txs with equal numbers
-      // of msgs or txs with no messages, so the division works
-      // TODO edit full.messages to include information about msgs per tx?
-      uint256 subTreeHeight = full.messages.l2ToL1Messages.length == 0
-        ? 0
-        : merkleTestUtil.calculateTreeHeightFromSize(full.messages.l2ToL1Messages.length / numTxs);
-      uint256 outHashTreeHeight = numTxs == 1 ? 0 : merkleTestUtil.calculateTreeHeightFromSize(numTxs);
-      uint256 numMessagesWithPadding = numTxs * Constants.MAX_L2_TO_L1_MSGS_PER_TX;
-
-      uint256 treeHeight = subTreeHeight + outHashTreeHeight;
-      NaiveMerkle tree = new NaiveMerkle(treeHeight);
-      for (uint256 i = 0; i < numMessagesWithPadding; i++) {
-        if (i < full.messages.l2ToL1Messages.length) {
-          tree.insertLeaf(full.messages.l2ToL1Messages[i]);
-        } else {
-          tree.insertLeaf(bytes32(0));
-        }
-      }
-
-      l2ToL1MessageTreeRoot = tree.computeRoot();
-    }
-
-    outbox = Outbox(address(rollup.getOutbox()));
-    bytes32 root = outbox.getRootData(full.block.blockNumber);
-
-    // If we are trying to read a block beyond the proven chain, we should see "nothing".
-    if (rollup.getProvenBlockNumber() >= full.block.blockNumber) {
-      assertEq(l2ToL1MessageTreeRoot, root, "Invalid l2 to l1 message tree root");
-    } else {
-      assertEq(root, bytes32(0), "Invalid outbox root");
     }
 
     assertEq(rollup.archive(), args.archive, "Invalid archive");

@@ -29,7 +29,7 @@ import type { L1ToL2MessageSource } from '@aztec/stdlib/messaging';
 import type { BlockProposal } from '@aztec/stdlib/p2p';
 import { makeBlockAttestation, makeBlockProposal, makeL2BlockHeader, mockTx } from '@aztec/stdlib/testing';
 import { AppendOnlyTreeSnapshot } from '@aztec/stdlib/trees';
-import { BlockHeader, ContentCommitment, type Tx, TxHash } from '@aztec/stdlib/tx';
+import { BlockHeader, type Tx, TxHash } from '@aztec/stdlib/tx';
 import { AttestationTimeoutError } from '@aztec/stdlib/validators';
 
 import { describe, expect, it, jest } from '@jest/globals';
@@ -237,8 +237,7 @@ describe('ValidatorClient', () => {
 
     beforeEach(async () => {
       const emptyInHash = await computeInHashFromL1ToL2Messages([]);
-      const contentCommitment = new ContentCommitment(Fr.random(), emptyInHash, Fr.random());
-      const blockHeader = makeL2BlockHeader(1, 100, 100, { contentCommitment });
+      const blockHeader = makeL2BlockHeader(1, 100, 100, { inHash: emptyInHash });
       blockNumber = blockHeader.getBlockNumber();
       proposal = makeBlockProposal({ header: blockHeader });
       // Set the current time to the start of the slot of the proposal

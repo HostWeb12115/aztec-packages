@@ -90,7 +90,9 @@ export async function retrievedBlockToPublishedL2Block(retrievedBlock: Retrieved
 
   const header = L2BlockHeader.from({
     lastArchive: new AppendOnlyTreeSnapshot(checkpointHeader.lastArchiveRoot, l2BlockNumber),
-    contentCommitment: checkpointHeader.contentCommitment,
+    blobsHash: checkpointHeader.blobsHash,
+    inHash: checkpointHeader.inHash,
+    outHash: checkpointHeader.outHash,
     state: stateReference,
     globalVariables,
     totalFees: body.txEffects.reduce((accum, txEffect) => accum.add(txEffect.transactionFee), Fr.ZERO),

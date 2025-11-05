@@ -9,6 +9,35 @@ Aztec is in full-speed development. Literally every version breaks compatibility
 
 ## 3.0.0-devnet.4
 
+### L2-to-L1 messages are now grouped by epoch.
+
+L2-to-L1 messages are now aggregated and organized per epoch rather than per block. This change affects how you compute membership witnesses for consuming messages on L1. You now need to know the epoch number in which the message was emitted to retrieve and consume the message.
+
+**Note**: This is only an API change. The protocol behavior remains the same - messages can still only be consumed once an epoch is proven as before.
+
+#### What changed
+
+Previously, you might have computed the membership witness without explicitly needing the epoch:
+
+```typescript
+const witness = await computeL2ToL1MembershipWitness(
+  node,
+  l2TxReceipt.blockNumber,
+  l2ToL1Message
+);
+```
+
+Now, you should provide the epoch number:
+
+```typescript
+const epoch = await rollup.getEpochNumberForBlock(l2TxReceipt.blockNumber);
+const witness = await computeL2ToL1MembershipWitness(
+  node,
+  epoch,
+  l2ToL1Message
+);
+```
+
 ## [aztec.js] Removal of barrel export
 
 `aztec.js` is now divided into granular exports, which improves loading performance in node.js and also makes the job of web bundlers easier:

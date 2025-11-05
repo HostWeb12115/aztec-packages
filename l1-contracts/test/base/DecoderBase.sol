@@ -5,7 +5,7 @@ pragma solidity >=0.8.27;
 import {TestBase} from "../base/Base.sol";
 
 import {Timestamp, Slot} from "@aztec/core/libraries/TimeLib.sol";
-import {ProposedHeader, ContentCommitment, GasFees} from "@aztec/core/libraries/rollup/ProposedHeaderLib.sol";
+import {ProposedHeader, GasFees} from "@aztec/core/libraries/rollup/ProposedHeaderLib.sol";
 import {ProposedHeaderLib} from "@aztec/core/libraries/rollup/ProposedHeaderLib.sol";
 
 // Many of the structs in here match what you see in `header` but with very important exceptions!
@@ -39,18 +39,14 @@ contract DecoderBase is TestBase {
     bytes32[] l2ToL1Messages;
   }
 
-  struct AlphabeticalContentCommitment {
-    bytes32 blobsHash;
-    bytes32 inHash;
-    bytes32 outHash;
-  }
-
   struct AlphabeticalHeader {
+    bytes32 blobsHash;
     address coinbase;
-    AlphabeticalContentCommitment contentCommitment;
     bytes32 feeRecipient;
     GasFees gasFees;
+    bytes32 inHash;
     bytes32 lastArchiveRoot;
+    bytes32 outHash;
     uint256 slotNumber;
     uint256 timestamp;
     uint256 totalManaUsed;
@@ -104,11 +100,9 @@ contract DecoderBase is TestBase {
         body: full.block.body,
         header: ProposedHeader({
           lastArchiveRoot: full.block.header.lastArchiveRoot,
-          contentCommitment: ContentCommitment({
-            blobsHash: full.block.header.contentCommitment.blobsHash,
-            inHash: full.block.header.contentCommitment.inHash,
-            outHash: full.block.header.contentCommitment.outHash
-          }),
+          blobsHash: full.block.header.blobsHash,
+          inHash: full.block.header.inHash,
+          outHash: full.block.header.outHash,
           slotNumber: Slot.wrap(full.block.header.slotNumber),
           timestamp: Timestamp.wrap(full.block.header.timestamp),
           coinbase: full.block.header.coinbase,

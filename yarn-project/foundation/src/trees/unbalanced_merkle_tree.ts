@@ -22,9 +22,13 @@ import { MerkleTreeCalculator } from './merkle_tree_calculator.js';
  * But if we instead combine the size-4 and size-8 subtrees first (depth 4), and then merge with the size-2 subtree
  * (depth 1), the final tree has a depth of 5.
  */
-export function computeUnbalancedMerkleTreeRoot(leaves: Buffer[], hasher = sha256Trunc): Buffer {
+export function computeUnbalancedMerkleTreeRoot(
+  leaves: Buffer[],
+  hasher = sha256Trunc,
+  emptyRoot = Buffer.alloc(32),
+): Buffer {
   if (!leaves.length) {
-    throw new Error('Cannot compute a Merkle root with no leaves');
+    return emptyRoot;
   }
 
   if (leaves.length === 1) {

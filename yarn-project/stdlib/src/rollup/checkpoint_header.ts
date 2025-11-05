@@ -13,15 +13,18 @@ import { z } from 'zod';
 import { AztecAddress } from '../aztec-address/index.js';
 import { GasFees } from '../gas/index.js';
 import { schemas } from '../schemas/index.js';
-import { ContentCommitment } from '../tx/content_commitment.js';
 import type { UInt64 } from '../types/shared.js';
 
 export class CheckpointHeader {
   constructor(
     /** Root of the archive tree before this block is added. */
     public lastArchiveRoot: Fr,
-    /** Content commitment of the L2 block. */
-    public contentCommitment: ContentCommitment,
+    /** Hash of the blobs in the checkpoint. */
+    public blobsHash: Fr,
+    /** Root of the l1 to l2 messages subtree. */
+    public inHash: Fr,
+    /** Root of the l2 to l1 messages subtree. */
+    public outHash: Fr,
     /** Slot number of the L2 block */
     public slotNumber: Fr,
     /** Timestamp of the L2 block. */
@@ -40,7 +43,9 @@ export class CheckpointHeader {
     return z
       .object({
         lastArchiveRoot: schemas.Fr,
-        contentCommitment: ContentCommitment.schema,
+        blobsHash: schemas.Fr,
+        inHash: schemas.Fr,
+        outHash: schemas.Fr,
         slotNumber: schemas.Fr,
         timestamp: schemas.BigInt,
         coinbase: schemas.EthAddress,
@@ -54,7 +59,9 @@ export class CheckpointHeader {
   static getFields(fields: FieldsOf<CheckpointHeader>) {
     return [
       fields.lastArchiveRoot,
-      fields.contentCommitment,
+      fields.blobsHash,
+      fields.inHash,
+      fields.outHash,
       fields.slotNumber,
       fields.timestamp,
       fields.coinbase,
@@ -73,7 +80,9 @@ export class CheckpointHeader {
 
     return new CheckpointHeader(
       reader.readObject(Fr),
-      reader.readObject(ContentCommitment),
+      reader.readObject(Fr),
+      reader.readObject(Fr),
+      reader.readObject(Fr),
       Fr.fromBuffer(reader),
       reader.readUInt64(),
       reader.readObject(EthAddress),
@@ -86,7 +95,9 @@ export class CheckpointHeader {
   equals(other: CheckpointHeader) {
     return (
       this.lastArchiveRoot.equals(other.lastArchiveRoot) &&
-      this.contentCommitment.equals(other.contentCommitment) &&
+      this.blobsHash.equals(other.blobsHash) &&
+      this.inHash.equals(other.inHash) &&
+      this.outHash.equals(other.outHash) &&
       this.slotNumber.equals(other.slotNumber) &&
       this.timestamp === other.timestamp &&
       this.coinbase.equals(other.coinbase) &&
@@ -100,7 +111,9 @@ export class CheckpointHeader {
     // Note: The order here must match the order in the ProposedHeaderLib solidity library.
     return serializeToBuffer([
       this.lastArchiveRoot,
-      this.contentCommitment,
+      this.blobsHash,
+      this.inHash,
+      this.outHash,
       this.slotNumber,
       bigintToUInt64BE(this.timestamp),
       this.coinbase,
@@ -117,7 +130,9 @@ export class CheckpointHeader {
   static empty(fields: Partial<FieldsOf<CheckpointHeader>> = {}) {
     return CheckpointHeader.from({
       lastArchiveRoot: Fr.ZERO,
-      contentCommitment: ContentCommitment.empty(),
+      blobsHash: Fr.ZERO,
+      inHash: Fr.ZERO,
+      outHash: Fr.ZERO,
       slotNumber: Fr.ZERO,
       timestamp: 0n,
       coinbase: EthAddress.ZERO,
@@ -131,7 +146,9 @@ export class CheckpointHeader {
   static random(): CheckpointHeader {
     return new CheckpointHeader(
       Fr.random(),
-      ContentCommitment.random(),
+      Fr.random(),
+      Fr.random(),
+      Fr.random(),
       new Fr(BigInt(Math.floor(Math.random() * 1000) + 1)),
       BigInt(Math.floor(Date.now() / 1000)),
       EthAddress.random(),
@@ -144,7 +161,9 @@ export class CheckpointHeader {
   isEmpty(): boolean {
     return (
       this.lastArchiveRoot.isZero() &&
-      this.contentCommitment.isEmpty() &&
+      this.blobsHash.isZero() &&
+      this.inHash.isZero() &&
+      this.outHash.isZero() &&
       this.slotNumber.isZero() &&
       this.timestamp === 0n &&
       this.coinbase.isZero() &&
@@ -169,7 +188,9 @@ export class CheckpointHeader {
   static fromViem(header: ViemHeader) {
     return new CheckpointHeader(
       Fr.fromString(header.lastArchiveRoot),
-      ContentCommitment.fromViem(header.contentCommitment),
+      Fr.fromString(header.blobsHash),
+      Fr.fromString(header.inHash),
+      Fr.fromString(header.outHash),
       new Fr(header.slotNumber),
       header.timestamp,
       new EthAddress(hexToBuffer(header.coinbase)),
@@ -182,7 +203,9 @@ export class CheckpointHeader {
   toViem(): ViemHeader {
     return {
       lastArchiveRoot: this.lastArchiveRoot.toString(),
-      contentCommitment: this.contentCommitment.toViem(),
+      blobsHash: this.blobsHash.toString(),
+      inHash: this.inHash.toString(),
+      outHash: this.outHash.toString(),
       slotNumber: this.slotNumber.toBigInt(),
       timestamp: this.timestamp,
       coinbase: this.coinbase.toString(),
@@ -198,7 +221,9 @@ export class CheckpointHeader {
   toInspect() {
     return {
       lastArchive: this.lastArchiveRoot.toString(),
-      contentCommitment: this.contentCommitment.toInspect(),
+      blobsHash: this.blobsHash.toString(),
+      inHash: this.inHash.toString(),
+      outHash: this.outHash.toString(),
       slotNumber: this.slotNumber.toBigInt(),
       timestamp: this.timestamp,
       coinbase: this.coinbase.toString(),
@@ -212,7 +237,9 @@ export class CheckpointHeader {
     const gasfees = `da:${this.gasFees.feePerDaGas}, l2:${this.gasFees.feePerL2Gas}`;
     return `Header {
   lastArchiveRoot: ${this.lastArchiveRoot.toString()},
-  contentCommitment: ${inspect(this.contentCommitment)},
+  blobsHash: ${inspect(this.blobsHash)},
+  inHash: ${inspect(this.inHash)},
+  outHash: ${inspect(this.outHash)},
   slotNumber: ${this.slotNumber.toBigInt()},
   timestamp: ${this.timestamp},
   coinbase: ${this.coinbase.toString()},

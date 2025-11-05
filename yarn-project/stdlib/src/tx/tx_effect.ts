@@ -192,12 +192,7 @@ export class TxEffect {
    * @dev Follows new_sha in unbalanced_merkle_tree.nr
    */
   txOutHash(): Buffer {
-    const { l2ToL1Msgs } = this;
-    if (l2ToL1Msgs.length == 0) {
-      return Buffer.alloc(32);
-    }
-
-    return computeUnbalancedMerkleTreeRoot(l2ToL1Msgs.map(msg => msg.toBuffer()));
+    return computeUnbalancedMerkleTreeRoot(this.l2ToL1Msgs.map(msg => msg.toBuffer()));
   }
 
   static async random(

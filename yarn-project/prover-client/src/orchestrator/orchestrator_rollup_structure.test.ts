@@ -1,12 +1,14 @@
 import { BatchedBlob, getBlobsPerL1Block } from '@aztec/blob-lib';
-import { AZTEC_MAX_EPOCH_DURATION } from '@aztec/constants';
+import { AZTEC_MAX_EPOCH_DURATION, MAX_L2_TO_L1_MSGS_PER_TX } from '@aztec/constants';
 import { asyncMap } from '@aztec/foundation/async-map';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createLogger } from '@aztec/foundation/log';
 import { Gas, GasFees } from '@aztec/stdlib/gas';
+import { ScopedL2ToL1Message, computeL2ToL1MembershipWitnessFromMessagesInEpoch } from '@aztec/stdlib/messaging';
 import { FeeRecipient } from '@aztec/stdlib/rollup';
+import { makeScopedL2ToL1Message } from '@aztec/stdlib/testing';
 import type { GlobalVariables } from '@aztec/stdlib/tx';
 
 import { TestContext } from '../mocks/test_context.js';
@@ -36,9 +38,18 @@ describe('prover/orchestrator/rollup-structure', () => {
     return { gasFees: mockCheckpointGasFees(checkpointIndex), coinbase: mockCoinbase(checkpointIndex) };
   };
 
-  const makeProcessedTxOpts = (blockGlobalVariables: GlobalVariables, txIndex: number) => ({
-    gasUsed: mockTxGasUsed(txIndex, blockGlobalVariables.blockNumber),
-  });
+  const makeProcessedTxOpts = (blockGlobalVariables: GlobalVariables, txIndex: number) => {
+    // Tweak the l2-to-l1 messages to have different amounts for building the out hashes in various tree shapes.
+    const numL2ToL1Messages = (blockGlobalVariables.blockNumber + txIndex) % (MAX_L2_TO_L1_MSGS_PER_TX + 1);
+    const messages = Array.from({ length: numL2ToL1Messages }, () => makeScopedL2ToL1Message((txIndex + 1) * 456));
+
+    return {
+      gasUsed: mockTxGasUsed(txIndex, blockGlobalVariables.blockNumber),
+      avmAccumulatedData: {
+        l2ToL1Msgs: padArrayEnd(messages, ScopedL2ToL1Message.empty(), MAX_L2_TO_L1_MSGS_PER_TX),
+      },
+    };
+  };
 
   beforeEach(async () => {
     context = await TestContext.new(logger);
@@ -60,6 +71,7 @@ describe('prover/orchestrator/rollup-structure', () => {
       const numL1ToL2Messages = 2;
 
       let firstBlockNumber = 1;
+      const l1ToL2MessagesInEpoch: Fr[][][][] = [];
       const expectedFees: FeeRecipient[] = [];
       const checkpoints = await asyncMap(numBlocksInCheckpoints, async (numBlocks, checkpointIndex) => {
         const numTxsPerBlock = numTxsPerBlockInCheckpoints[checkpointIndex];
@@ -71,6 +83,8 @@ describe('prover/orchestrator/rollup-structure', () => {
           makeGlobalVariablesOpts,
           makeProcessedTxOpts,
         });
+
+        l1ToL2MessagesInEpoch[checkpointIndex] = checkpoint.blocks.map(b => b.txs.map(tx => tx.txEffect.l2ToL1Msgs));
 
         // Accumulate the fees for the checkpoint, to be compared with the values from the root rollup's public inputs.
         const totalFee = checkpoint.blocks
@@ -112,6 +126,11 @@ describe('prover/orchestrator/rollup-structure', () => {
       }
 
       const result = await context.orchestrator.finalizeEpoch();
+
+      const firstMessage = l1ToL2MessagesInEpoch.flat(4)[0];
+      const { root: outHash } = computeL2ToL1MembershipWitnessFromMessagesInEpoch(l1ToL2MessagesInEpoch, firstMessage);
+      expect(result.publicInputs.outHash).toEqual(outHash);
+
       expect(result.publicInputs.fees).toEqual(
         padArrayEnd(expectedFees, FeeRecipient.empty(), AZTEC_MAX_EPOCH_DURATION),
       );

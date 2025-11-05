@@ -51,11 +51,9 @@ export async function writeJson(
       body: `0x${block.body.toBuffer().toString('hex')}`,
       header: {
         lastArchiveRoot: asHex(block.header.lastArchive.root),
-        contentCommitment: {
-          blobsHash: asHex(block.header.contentCommitment.blobsHash),
-          inHash: asHex(block.header.contentCommitment.inHash),
-          outHash: asHex(block.header.contentCommitment.outHash),
-        },
+        blobsHash: asHex(block.header.blobsHash),
+        inHash: asHex(block.header.inHash),
+        outHash: asHex(block.header.outHash),
         slotNumber: Number(block.header.globalVariables.slotNumber),
         timestamp: Number(block.header.globalVariables.timestamp),
         coinbase: asHex(block.header.globalVariables.coinbase, 40),

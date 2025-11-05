@@ -25,29 +25,27 @@
     "l2ToL1Messages": []
   },
   "block": {
-    "archive": "0x08c60bf25db567d2706a3fb63a54a2d9424177cf67dba6cf5fff27b844e0d243",
+    "archive": "0x0e002503e2e2cda79d97b261493390db7bda68afb376db379307541763a8315f",
     "blobCommitments": "0x01af6d0dfff63f67b5e7129fcdac8635cdb149960eefd640ef9008436595d9c2c3ef760011ddb4098547c156fb677ba0b4",
     "batchedBlobInputs": "0x01440a95caeb3adbeba93351e6d52d29af6a65e986c652f85ab71af0dbf42a7e17f7c027cfdbbf9df77ca5918bc7d113d05acd245632b8ca83fc4bff3f3d193e38e3f09660588021925f76e9464f298cd8003e8194e97465c66e9013fb0b77218ceaa4daaa534c1e107920e7f6930beba287e18c54267a91ccf49d2052ec889977e1977758cba9a4bb37e4f176da9ce7a8fb223f239159eac35e93c1f7b0b0ba356fdb439bb4077ac07cbbf4aeb73008bb41ce6c8d85e96bee56d4679b2c897a",
     "blockNumber": 2,
     "body": "0x00000000",
     "header": {
-      "lastArchiveRoot": "0x281d898df1cfa46a8e1aef0d8b7a97cb459ad19323ca84ad76709a31622985fa",
-      "contentCommitment": {
-        "blobsHash": "0x0080e6984c53f3fba69650f989d6c5e1c515391c4818c4a5445e2a912c945636",
-        "inHash": "0x004fc146e02be216e6aedcfe9df9fbe498d7375d41ada921ec468f9b58b529eb",
-        "outHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
-      },
+      "lastArchiveRoot": "0x269c36893e746790e5eb055e632ceab2157905629283ca5b0a5221221422d700",
+      "blobsHash": "0x0080e6984c53f3fba69650f989d6c5e1c515391c4818c4a5445e2a912c945636",
+      "inHash": "0x00dd7f154a1df26e02dbfda274d8a5809865fb8ec8bdc6ce3fffacd753afd81e",
+      "outHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
       "slotNumber": 108,
-      "timestamp": 1761836595,
-      "coinbase": "0x78f66d74eeca096351a9b8e59e3c22a04dde5734",
-      "feeRecipient": "0x2148354b093ec84ba3bfb5b9dddb2d3f77bd6c3e9d53f0c492210f058e5db775",
+      "timestamp": 1762294108,
+      "coinbase": "0x6adac7421648df32546edda166fab95d6135028b",
+      "feeRecipient": "0x2ca7a475baab213e91027d6cd0a052a1de51bb1d31b88e569b70cfedb3acb213",
       "gasFees": {
         "feePerDaGas": 0,
         "feePerL2Gas": 1490
       },
       "totalManaUsed": 0
     },
-    "headerHash": "0x001938139b48a0f77e32209f8cdb1be26211c8fe23c0b8f0f72ebe27dc4aa898",
+    "headerHash": "0x00e6177d634583f12a9ff1fddb5f43eaf82deab183d0a3f937b04ef13fa19eff",
     "numTxs": 0
   }
 }

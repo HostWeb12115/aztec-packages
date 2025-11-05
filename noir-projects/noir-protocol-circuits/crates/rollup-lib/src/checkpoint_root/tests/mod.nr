@@ -26,7 +26,6 @@ use types::{
         BLOCK_ROOT_FIRST_ROLLUP_VK_INDEX, BLOCK_ROOT_ROLLUP_VK_INDEX,
         BLOCK_ROOT_SINGLE_TX_FIRST_ROLLUP_VK_INDEX, BLOCK_ROOT_SINGLE_TX_ROLLUP_VK_INDEX,
     },
-    content_commitment::ContentCommitment,
     tests::utils::{assert_array_eq, make_fixture, pad_end},
     traits::{Hash, Serialize},
 };
@@ -263,6 +262,7 @@ impl TestBuilder {
         } else {
             accumulate_out_hash(left.out_hash, right.out_hash)
         };
+
         let total_mana_used = if self.is_single_block {
             left.accumulated_mana_used
         } else {
@@ -271,11 +271,9 @@ impl TestBuilder {
 
         CheckpointHeader {
             last_archive_root: left.previous_archive.root,
-            content_commitment: ContentCommitment {
-                blobs_hash: self.hints.blobs_hash,
-                in_hash: left.in_hash,
-                out_hash,
-            },
+            blobs_hash: self.hints.blobs_hash,
+            in_hash: left.in_hash,
+            out_hash,
             slot_number: left.constants.slot_number,
             timestamp: right.end_timestamp,
             coinbase: left.constants.coinbase,
@@ -315,6 +313,13 @@ impl TestBuilder {
             pi.checkpoint_header_hashes,
             [expected_checkpoint_header.hash()],
         );
+
+        let out_hash = if self.is_single_block {
+            left.out_hash
+        } else {
+            accumulate_out_hash(left.out_hash, right.out_hash)
+        };
+        assert_array_eq(pi.out_hashes, [out_hash]);
 
         let total_fees = if self.is_single_block {
             left.accumulated_fees
