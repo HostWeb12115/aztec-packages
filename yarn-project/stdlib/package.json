@@ -54,8 +54,7 @@
     "./zkpassport": "./dest/zkpassport/index.js",
     "./slashing": "./dest/slashing/index.js",
     "./l1-contracts": "./dest/l1-contracts/index.js",
-    "./world-state": "./dest/world-state/index.js",
-    "./events": "./dest/events/index.js"
+    "./world-state": "./dest/world-state/index.js"
   },
   "typedocOptions": {
     "entryPoints": [
