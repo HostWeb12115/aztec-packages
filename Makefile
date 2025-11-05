@@ -64,7 +64,7 @@ full: release-image barretenberg boxes playground docs spartan aztec-up \
 		  bb-full-tests l1-contracts-tests yarn-project-tests boxes-tests playground-tests aztec-up-tests docs-tests noir-protocol-circuits-tests
 
 # Release. Everything plus copy bb cross compiles to bb.js.
-release: all bb-ts-cross-copy yarn-project-cross-copy
+release: all bb-cpp-release-dir bb-ts-cross-copy yarn-project-cross-copy
 
 #==============================================================================
 # Noir
@@ -167,6 +167,9 @@ bb-cpp-asan:
 # SMT verification (CI_FULL only)
 bb-cpp-smt:
 	$(call build,$@,barretenberg/cpp,build_smt_verification)
+
+bb-cpp-release-dir: bb-cpp-native bb-cpp-cross
+	$(call build,$@,barretenberg/cpp,build_release_dir)
 
 bb-cpp-full: bb-cpp-gcc bb-cpp-fuzzing bb-cpp-asan bb-cpp-smt bb-cpp-cross-arm64-macos bb-cpp-wasm-threads-benches
 
