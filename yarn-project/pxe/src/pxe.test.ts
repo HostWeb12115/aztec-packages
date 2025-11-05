@@ -11,7 +11,6 @@ import { EventSelector } from '@aztec/stdlib/abi';
 import { AztecAddress } from '@aztec/stdlib/aztec-address';
 import { L2BlockHash } from '@aztec/stdlib/block';
 import { getContractClassFromArtifact } from '@aztec/stdlib/contract';
-import type { PrivateEvent } from '@aztec/stdlib/events';
 import type { AztecNode } from '@aztec/stdlib/interfaces/client';
 import {
   randomContractArtifact,
@@ -24,7 +23,7 @@ import { mock } from 'jest-mock-extended';
 import type { MockProxy } from 'jest-mock-extended/lib/Mock.js';
 
 import type { PXEConfig } from './config/index.js';
-import { PXE } from './pxe.js';
+import { PXE, type PrivateEvent } from './pxe.js';
 import { PrivateEventDataProvider } from './storage/index.js';
 
 describe('PXE', () => {

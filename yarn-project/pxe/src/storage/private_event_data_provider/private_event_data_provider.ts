@@ -5,8 +5,9 @@ import type { AztecAsyncArray, AztecAsyncKVStore, AztecAsyncMap } from '@aztec/k
 import type { EventSelector } from '@aztec/stdlib/abi';
 import type { AztecAddress } from '@aztec/stdlib/aztec-address';
 import { L2BlockHash } from '@aztec/stdlib/block';
-import type { PrivateEvent } from '@aztec/stdlib/events';
 import { TxHash } from '@aztec/stdlib/tx';
+
+import type { PrivateEvent } from '../../pxe.js';
 
 interface PrivateEventEntry {
   msgContent: Buffer;
