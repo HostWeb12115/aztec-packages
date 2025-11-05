@@ -9,10 +9,9 @@ import type { AztecNode } from '@aztec/aztec.js/node';
 import { type Aliased, BaseWallet } from '@aztec/aztec.js/wallet';
 import { Fr } from '@aztec/foundation/fields';
 import { TokenContract, type Transfer } from '@aztec/noir-contracts.js/Token';
-import { PXE } from '@aztec/pxe/server';
+import { PXE, type PrivateEvent } from '@aztec/pxe/server';
 import { AztecAddress } from '@aztec/stdlib/aztec-address';
 import { L2BlockHash } from '@aztec/stdlib/block';
-import type { PrivateEvent } from '@aztec/stdlib/events';
 import { TxHash } from '@aztec/stdlib/tx';
 
 import { type MockProxy, mock } from 'jest-mock-extended';

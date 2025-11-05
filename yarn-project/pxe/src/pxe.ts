@@ -18,6 +18,7 @@ import {
 } from '@aztec/stdlib/abi';
 import type { AuthWitness } from '@aztec/stdlib/auth-witness';
 import type { AztecAddress } from '@aztec/stdlib/aztec-address';
+import type { L2BlockHash } from '@aztec/stdlib/block';
 import {
   CompleteAddress,
   type ContractClassWithId,
@@ -27,7 +28,6 @@ import {
   getContractClassFromArtifact,
 } from '@aztec/stdlib/contract';
 import { SimulationError } from '@aztec/stdlib/errors';
-import type { PrivateEvent } from '@aztec/stdlib/events';
 import { siloNullifier } from '@aztec/stdlib/hash';
 import type { AztecNode, PrivateKernelProver } from '@aztec/stdlib/interfaces/client';
 import type {
@@ -46,6 +46,7 @@ import {
   type SimulationTimings,
   Tx,
   TxExecutionRequest,
+  TxHash,
   TxProfileResult,
   TxProvingResult,
   TxSimulationResult,
@@ -77,6 +78,14 @@ import { PrivateEventDataProvider } from './storage/private_event_data_provider/
 import { SyncDataProvider } from './storage/sync_data_provider/sync_data_provider.js';
 import { TaggingDataProvider } from './storage/tagging_data_provider/tagging_data_provider.js';
 import { Synchronizer } from './synchronizer/index.js';
+
+export type PrivateEvent = {
+  msgContent: Fr[];
+  blockNumber: number;
+  blockHash: L2BlockHash;
+  txHash: TxHash;
+  recipient: AztecAddress;
+};
 
 /**
  * Private eXecution Environment (PXE) is a library used by wallets to simulate private phase of transactions and to
