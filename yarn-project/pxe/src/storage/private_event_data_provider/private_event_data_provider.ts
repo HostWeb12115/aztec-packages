@@ -90,16 +90,16 @@ export class PrivateEventDataProvider {
   /**
    * Returns the private events given search parameters.
    * @param contractAddress - The address of the contract to get events from.
-   * @param from - The block number to search from.
-   * @param numBlocks - The amount of blocks to search.
+   * @param fromBlock - The block number to search from (inclusive).
+   * @param toBlock - The block number to search upto (exclusive).
    * @param recipients - The addresses that decrypted the logs.
    * @param eventSelector - The event selector to filter by.
    * @returns - The event log contents.
    */
   public async getPrivateEvents(
     contractAddress: AztecAddress,
-    from: number,
-    numBlocks: number,
+    fromBlock: number,
+    toBlock: number,
     recipients: AztecAddress[],
     eventSelector: EventSelector,
   ): Promise<PrivateEvent[]> {
@@ -111,7 +111,7 @@ export class PrivateEventDataProvider {
 
       for (const index of indices) {
         const entry = await this.#eventLogs.atAsync(index);
-        if (!entry || entry.blockNumber < from || entry.blockNumber >= from + numBlocks) {
+        if (!entry || entry.blockNumber < fromBlock || entry.blockNumber >= toBlock) {
           continue;
         }
 
@@ -125,7 +125,7 @@ export class PrivateEventDataProvider {
         events.push({
           eventCommitmentIndex: entry.eventCommitmentIndex,
           event: {
-            msgContent,
+            packedEvent: msgContent,
             blockNumber: entry.blockNumber,
             recipient,
             txHash,

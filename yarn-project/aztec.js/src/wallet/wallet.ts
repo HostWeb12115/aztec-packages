@@ -11,6 +11,7 @@ import {
 } from '@aztec/stdlib/abi';
 import { AuthWitness } from '@aztec/stdlib/auth-witness';
 import type { AztecAddress } from '@aztec/stdlib/aztec-address';
+import type { L2BlockHash } from '@aztec/stdlib/block';
 import {
   type ContractClassMetadata,
   ContractClassWithIdSchema,
@@ -146,18 +147,59 @@ export type BatchResults<T extends readonly BatchedMethod<keyof BatchableMethods
 };
 
 /**
+ * Represents a private events query
+ */
+export type PrivateEventFilter = {
+  /** The contract address to filter logs by. */
+  contractAddress: AztecAddress;
+  /** List of recipients to filter logs by. */
+  recipients: AztecAddress[];
+  /** Hash of a transaction from which to fetch the logs. If not provided, events from all tx's are returned. */
+  txHash?: TxHash;
+  /** The block number from which to start fetching logs (inclusive). Defaults to latest known block. */
+  fromBlock?: number;
+  /** The block number until which to fetch logs (not inclusive). Defaults to latest known block + 1. */
+  toBlock?: number;
+};
+
+/**
+ * Metadata about a private event
+ * TODO(martin): refactor to:
+ *  type InBlock = { blockNumber: number; blockHash: L2BlockHash; };
+ *  type InTx = InBlock & { txHash: TxHash };
+ *  type PrivateEventMetadata = InTx & { recipient: AztecAddress };
+ */
+export type PrivateEventMetadata = {
+  /** Block number the event was included in */
+  blockNumber: number;
+  /** Block hash the event was included in */
+  blockHash: L2BlockHash;
+  /** Tx hash the event was emitted in */
+  txHash: TxHash;
+  /** Event recipient */
+  recipient: AztecAddress;
+};
+
+/**
+ * An ABI decoded private event with associated metadata.
+ */
+export type PrivateEvent<T> = {
+  /** The ABI decoded event */
+  event: T;
+  /** Metadata describing event context information such as tx and block */
+  metadata: PrivateEventMetadata;
+};
+
+/**
  * The wallet interface.
  */
 export type Wallet = {
   getContractClassMetadata(id: Fr, includeArtifact?: boolean): Promise<ContractClassMetadata>;
   getContractMetadata(address: AztecAddress): Promise<ContractMetadata>;
   getPrivateEvents<T>(
-    contractAddress: AztecAddress,
     eventMetadata: EventMetadataDefinition,
-    from: number,
-    numBlocks: number,
-    recipients: AztecAddress[],
-  ): Promise<T[]>;
+    eventFilter: PrivateEventFilter,
+  ): Promise<PrivateEvent<T>[]>;
   getChainInfo(): Promise<ChainInfo>;
   getTxReceipt(txHash: TxHash): Promise<TxReceipt>;
   registerSender(address: AztecAddress, alias?: string): Promise<AztecAddress>;
@@ -322,7 +364,7 @@ export const WalletSchema: ApiSchemaFor<Wallet> = {
   getTxReceipt: z.function().args(TxHash.schema).returns(TxReceipt.schema),
   getPrivateEvents: z
     .function()
-    .args(schemas.AztecAddress, EventMetadataDefinitionSchema, z.number(), z.number(), z.array(schemas.AztecAddress))
+    .args(EventMetadataDefinitionSchema, z.number(), z.number(), z.array(schemas.AztecAddress))
     .returns(z.array(AbiDecodedSchema)),
   registerSender: z.function().args(schemas.AztecAddress, optional(z.string())).returns(schemas.AztecAddress),
   getAddressBook: z

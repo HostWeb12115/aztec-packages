@@ -44,6 +44,8 @@ import type {
   BatchableMethods,
   BatchedMethod,
   ContractInstanceAndArtifact,
+  PrivateEvent,
+  PrivateEventFilter,
   ProfileOptions,
   SendOptions,
   SimulateOptions,
@@ -339,17 +341,22 @@ export abstract class BaseWallet implements Wallet {
   }
 
   async getPrivateEvents<T>(
-    contractAddress: AztecAddress,
     eventDef: EventMetadataDefinition,
-    from: number,
-    limit: number,
-    recipients: AztecAddress[] = [],
-  ): Promise<T[]> {
-    const events = await this.pxe.getPrivateEvents(contractAddress, eventDef.eventSelector, from, limit, recipients);
+    eventFilter: PrivateEventFilter,
+  ): Promise<PrivateEvent<T>[]> {
+    const pxeEvents = await this.pxe.getPrivateEvents(eventDef.eventSelector, eventFilter);
 
-    const decodedEvents = events.map(
-      (event: any /** PrivateEvent */): T => decodeFromAbi([eventDef.abiType], event.msgContent) as T,
-    );
+    const decodedEvents = pxeEvents.map((pxeEvent: any /** PrivateEvent */): PrivateEvent<T> => {
+      return {
+        event: decodeFromAbi([eventDef.abiType], pxeEvent.msgContent) as T,
+        metadata: {
+          blockNumber: pxeEvent.blockNumber,
+          blockHash: pxeEvent.blockHash,
+          txHash: pxeEvent.txHash,
+          recipient: pxeEvent.recipient,
+        },
+      };
+    });
 
     return decodedEvents;
   }

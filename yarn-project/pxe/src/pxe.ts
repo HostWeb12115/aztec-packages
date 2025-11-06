@@ -1,3 +1,4 @@
+import type { PrivateEventFilter } from '@aztec/aztec.js/wallet';
 import { Fr } from '@aztec/foundation/fields';
 import { type Logger, createLogger } from '@aztec/foundation/log';
 import { SerialQueue } from '@aztec/foundation/queue';
@@ -80,7 +81,7 @@ import { TaggingDataProvider } from './storage/tagging_data_provider/tagging_dat
 import { Synchronizer } from './synchronizer/index.js';
 
 export type PrivateEvent = {
-  msgContent: Fr[];
+  packedEvent: Fr[];
   blockNumber: number;
   blockHash: L2BlockHash;
   txHash: TxHash;
@@ -1078,23 +1079,47 @@ export class PXE {
    * @param recipients - The addresses that decrypted the logs.
    * @returns - The deserialized events.
    */
-  public async getPrivateEvents(
-    contractAddress: AztecAddress,
-    eventSelector: EventSelector,
-    from: number,
-    numBlocks: number,
-    recipients: AztecAddress[],
-  ): Promise<PrivateEvent[]> {
+  public async getPrivateEvents(eventSelector: EventSelector, filter: PrivateEventFilter): Promise<PrivateEvent[]> {
+    // Maybe we should reconsider the lint rule that forces const definitions on
+    // every declaration that is not re-assigned, as it forces us to do things as
+    // below for little gain (or at least disable the rule for destructuring assignments like these).
+    const { contractAddress, recipients } = filter;
+    let { fromBlock, toBlock } = filter;
+
     if (recipients.length === 0) {
       throw new Error('Recipients are required to get private events');
     }
 
-    this.log.verbose(`Getting private events for ${contractAddress.toString()} from ${from} to ${from + numBlocks}`);
-
     // We need to manually trigger private state sync to have a guarantee that all the events are available.
     await this.simulateUtility('sync_private_state', [], contractAddress);
 
-    return this.privateEventDataProvider.getPrivateEvents(contractAddress, from, numBlocks, recipients, eventSelector);
+    // Block range filters at node level are defined as closed-open intervals [fromBlock, toBlock), so
+    // we respect that convention here for consistency.
+    // We then default to [latestBlock, latestBlock + 1), meaning: by default only return events from
+    // the latest known block.
+    if (!fromBlock || !toBlock) {
+      const lastKnownBlock = await this.syncDataProvider.getBlockNumber();
+      fromBlock = fromBlock ?? lastKnownBlock;
+      toBlock = toBlock ?? lastKnownBlock + 1;
+    }
+
+    if (fromBlock < 0 || toBlock < 0) {
+      throw new Error('fromBlock and toBlock must be greater or equal than 0');
+    }
+
+    if (fromBlock > toBlock) {
+      return [];
+    }
+
+    this.log.verbose(`Getting private events for ${contractAddress.toString()} from ${fromBlock} to ${toBlock}`);
+
+    return this.privateEventDataProvider.getPrivateEvents(
+      contractAddress,
+      fromBlock,
+      toBlock,
+      recipients,
+      eventSelector,
+    );
   }
 
   /**
