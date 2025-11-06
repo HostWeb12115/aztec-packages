@@ -1,10 +1,8 @@
 # Aztec Packages Build System
 #
-# This Makefile is called by the root bootstrap.sh build() function.
+# This Makefile is called by the root bootstrap.sh build and build_and_test functions.
 # It coordinates the build order and dependencies between projects.
 # The actual build logic remains in each project's bootstrap.sh script.
-#
-# The BUILD_MODE variable is passed from bootstrap.sh (fast/full/etc).
 #
 # Note that "test" targets don't *run* tests, they just output test commands to /tmp/test_cmds.
 #
@@ -63,12 +61,13 @@ full: release-image barretenberg boxes playground docs spartan aztec-up \
 			bb-cpp-full yarn-project-benches \
 		  bb-full-tests l1-contracts-tests yarn-project-tests boxes-tests playground-tests aztec-up-tests docs-tests noir-protocol-circuits-tests
 
-# Release. Everything plus copy bb cross compiles to bb.js.
+# Release. Everything plus copy bb cross compiles to ts projects.
 release: all bb-cpp-release-dir bb-ts-cross-copy yarn-project-cross-copy
 
 #==============================================================================
 # Noir
 #==============================================================================
+
 noir-sync:
 	$(call build,$@,noir,noir-sync)
 

@@ -226,7 +226,7 @@ function build {
     rm -rf build*
   fi
 
-  (cd $root && make barretenberg)
+  (cd $root && make bb-cpp)
 }
 
 # Print every individual test command. Can be fed into gnu parallel.
@@ -306,13 +306,8 @@ function bench {
 
 # Upload assets to release.
 function release {
-  # ARM64 doesn't contribute to the build at all anymore.
-  if semver check "$REF_NAME" && [[ "$(arch)" == "amd64" ]]; then
-    echo_header "bb cpp release"
-    do_or_dryrun gh release upload $REF_NAME build-release/* --clobber
-  else
-    echo "bb/cpp/bootstraps.sh release - WARNING: Doing nothing. we only build on amd64, and if tagged as a release."
-  fi
+  echo_header "bb cpp release"
+  do_or_dryrun gh release upload $REF_NAME build-release/* --clobber
 }
 
 case "$cmd" in

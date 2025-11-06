@@ -313,16 +313,8 @@ function release {
     boxes
     aztec-up
     playground
-    # docs # released as part of ci
     release-image
   )
-  if [ $(arch) == arm64 ]; then
-    echo "Only releasing packages with platform-specific binaries on arm64."
-    projects=(
-      barretenberg/cpp
-      release-image
-    )
-  fi
 
   for project in "${projects[@]}"; do
     $project/bootstrap.sh release
@@ -394,8 +386,15 @@ case "$cmd" in
     if ! semver check $REF_NAME; then
       exit 1
     fi
-    build release
-    release
+    # We perform most of the release from the amd build (which does cross-compiles etc).
+    # The arm build just needs to build and push the release-image.
+    if [ "$(arch)" == "amd64" ]; then
+      build release
+      release
+    else
+      build
+      ./release-image/bootstrap.sh release
+    fi
     ;;
   "ci-docs")
     export CI=1
