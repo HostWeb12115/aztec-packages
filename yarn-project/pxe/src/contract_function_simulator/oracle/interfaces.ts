@@ -131,7 +131,14 @@ export interface IPrivateExecutionOracle {
 
   privateStoreInExecutionCache(values: Fr[], hash: Fr): void;
   privateLoadFromExecutionCache(hash: Fr): Promise<Fr[]>;
-  (storageSlot: Fr, randomness: Fr, noteTypeId: NoteSelector, note: Fr[], noteHash: Fr, counter: number): void;
+  privateNotifyCreatedNote(
+    storageSlot: Fr,
+    randomness: Fr,
+    noteTypeId: NoteSelector,
+    note: Fr[],
+    noteHash: Fr,
+    counter: number,
+  ): void;
   privateNotifyNullifiedNote(innerNullifier: Fr, noteHash: Fr, counter: number): Promise<void>;
   privateNotifyCreatedNullifier(innerNullifier: Fr): Promise<void>;
   privateNotifyCreatedContractClassLog(log: ContractClassLog, counter: number): void;

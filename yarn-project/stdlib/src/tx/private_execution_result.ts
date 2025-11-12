@@ -20,12 +20,15 @@ import type { OffchainEffect } from './offchain_effect.js';
 /**
  * The contents of a new note.
  */
+/* TODO(martin): rename this type */
 export class NoteAndSlot {
   constructor(
     /** The note. */
     public note: Note,
     /** The storage slot of the note. */
     public storageSlot: Fr,
+    /** The randomness injected to the note. */
+    public randomness: Fr,
     /** The note type identifier. */
     public noteTypeId: NoteSelector,
   ) {}
@@ -35,17 +38,18 @@ export class NoteAndSlot {
       .object({
         note: Note.schema,
         storageSlot: schemas.Fr,
+        randomness: schemas.Fr,
         noteTypeId: schemas.NoteSelector,
       })
       .transform(NoteAndSlot.from);
   }
 
   static from(fields: FieldsOf<NoteAndSlot>) {
-    return new NoteAndSlot(fields.note, fields.storageSlot, fields.noteTypeId);
+    return new NoteAndSlot(fields.note, fields.storageSlot, fields.randomness, fields.noteTypeId);
   }
 
   static random() {
-    return new NoteAndSlot(Note.random(), Fr.random(), NoteSelector.random());
+    return new NoteAndSlot(Note.random(), Fr.random(), Fr.random(), NoteSelector.random());
   }
 }
 

@@ -9,6 +9,7 @@ describe('NoteValidationRequest', () => {
     const serialized = [
       '0x0000000000000000000000000000000000000000000000000000000000000001',
       '0x0000000000000000000000000000000000000000000000000000000000000002',
+      '0X000000000000000000000000000000000000000000000000000000000000002a',
       '0x0000000000000000000000000000000000000000000000000000000000000003',
       '0x0000000000000000000000000000000000000000000000000000000000000004',
       '0x0000000000000000000000000000000000000000000000000000000000000005',
@@ -33,6 +34,7 @@ describe('NoteValidationRequest', () => {
 
     expect(request.contractAddress).toEqual(AztecAddress.fromBigInt(1n));
     expect(request.storageSlot).toEqual(new Fr(2));
+    expect(request.randomness).toEqual(new Fr(42));
     expect(request.noteNonce).toEqual(new Fr(3));
     expect(request.content).toEqual([new Fr(4), new Fr(5)]);
     expect(request.noteHash).toEqual(new Fr(6));

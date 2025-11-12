@@ -402,7 +402,7 @@ export class PrivateExecutionOracle extends UtilityExecutionOracle implements IP
       },
       counter,
     );
-    this.newNotes.push(new NoteAndSlot(note, storageSlot, noteTypeId));
+    this.newNotes.push(new NoteAndSlot(note, storageSlot, randomness, noteTypeId));
   }
 
   /**

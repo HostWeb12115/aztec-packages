@@ -95,30 +95,26 @@ export class PXEOracleInterface implements ExecutionDataProvider {
     return instance;
   }
 
-  async getNotes(
-    contractAddress: AztecAddress,
-    storageSlot: Fr,
-    randomness: Fr,
-    status: NoteStatus,
-    scopes?: AztecAddress[],
-  ) {
+  async getNotes(contractAddress: AztecAddress, storageSlot: Fr, status: NoteStatus, scopes?: AztecAddress[]) {
     const noteDaos = await this.noteDataProvider.getNotes({
       contractAddress,
       storageSlot,
-      randomness,
       status,
       scopes,
     });
-    return noteDaos.map(({ contractAddress, storageSlot, noteNonce, note, noteHash, siloedNullifier, index }) => ({
-      contractAddress,
-      storageSlot,
-      noteNonce,
-      note,
-      noteHash,
-      siloedNullifier,
-      // PXE can use this index to get full MembershipWitness
-      index,
-    }));
+    return noteDaos.map(
+      ({ contractAddress, storageSlot, randomness, noteNonce, note, noteHash, siloedNullifier, index }) => ({
+        contractAddress,
+        storageSlot,
+        randomness,
+        noteNonce,
+        note,
+        noteHash,
+        siloedNullifier,
+        // PXE can use this index to get full MembershipWitness
+        index,
+      }),
+    );
   }
 
   async getFunctionArtifact(
@@ -621,6 +617,7 @@ export class PXEOracleInterface implements ExecutionDataProvider {
       this.deliverNote(
         request.contractAddress,
         request.storageSlot,
+        request.randomness,
         request.noteNonce,
         request.content,
         request.noteHash,
@@ -651,6 +648,7 @@ export class PXEOracleInterface implements ExecutionDataProvider {
   async deliverNote(
     contractAddress: AztecAddress,
     storageSlot: Fr,
+    randomness: Fr,
     noteNonce: Fr,
     content: Fr[],
     noteHash: Fr,
@@ -702,6 +700,7 @@ export class PXEOracleInterface implements ExecutionDataProvider {
       new Note(content),
       contractAddress,
       storageSlot,
+      randomness,
       noteNonce,
       noteHash,
       siloedNullifier,
