@@ -34,10 +34,10 @@ impl<let N: u32> ContractDeployment<N> {
     ///     MyContract::interface().init_fn(owner)
     ///   );
     /// }
-    pub unconstrained fn with_private_initializer<T, let P: u32>(
+    pub unconstrained fn with_private_initializer<T, let P: u32, let L: u32>(
         self,
         from: AztecAddress,
-        initializer_call: PrivateCall<P, T>,
+        initializer_call: PrivateCall<P, L, T>,
     ) -> AztecAddress
     where
         T: Deserialize,
@@ -52,7 +52,7 @@ impl<let N: u32> ContractDeployment<N> {
         // a contract at an unknown address. Now that we've deployed the contract We can crate a new call interface with
         // the address and perform the call.
         // We probably want to introduce an intermediate struct to represent this, if we're going to keep this API.
-        let _ = self.env.call_private::<T, _>(
+        let _ = self.env.call_private::<T, _, _>(
             from,
             PrivateCall::new(instance.to_address(), selector, name, args),
         );
@@ -78,10 +78,10 @@ impl<let N: u32> ContractDeployment<N> {
     ///     MyContract::interface().init_fn(owner)
     ///   );
     /// }
-    pub unconstrained fn with_public_initializer<let P: u32, T>(
+    pub unconstrained fn with_public_initializer<let P: u32, let L: u32, T>(
         self,
         from: AztecAddress,
-        initializer_call: PublicCall<P, T>,
+        initializer_call: PublicCall<P, L, T>,
     ) -> AztecAddress
     where
         T: Deserialize,
@@ -96,7 +96,7 @@ impl<let N: u32> ContractDeployment<N> {
         // a contract at an unknown address. Now that we've deployed the contract We can crate a new call interface with
         // the address and perform the call.
         // We probably want to introduce an intermediate struct to represent this, if we're going to keep this API.
-        let _ = self.env.call_public::<T, _>(
+        let _ = self.env.call_public::<T, _, _>(
             from,
             PublicCall::new(instance.to_address(), selector, name, args),
         );

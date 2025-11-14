@@ -580,10 +580,10 @@ fn handle_foreign_call(
 /// (an external 'call' brillig foreign call was encountered)
 /// Adds the new instruction to the avm instructions list.
 // #[oracle(avmOpcodeCall)]
-// unconstrained fn call_opcode(
+// unconstrained fn call_opcode<let N: u32>(
 //     gas: [Field; 2], // gas allocation: [l2_gas, da_gas]
 //     address: AztecAddress,
-//     args: [Field],
+//     args: [Field; N],
 // ) {}
 fn handle_external_call(
     avm_instrs: &mut Vec<AvmInstruction>,
@@ -591,9 +591,9 @@ fn handle_external_call(
     inputs: &[ValueOrArray],
     opcode: AvmOpcode,
 ) {
-    if !destinations.is_empty() || inputs.len() != 5 {
+    if !destinations.is_empty() || inputs.len() != 4 {
         panic!(
-            "Transpiler expects ForeignCall (Static)Call to have 0 destinations and 5 inputs, got {} and {}.",
+            "Transpiler expects ForeignCall (Static)Call to have 0 destinations and 4 inputs, got {} and {}.",
             destinations.len(),
             inputs.len()
         );
@@ -611,14 +611,10 @@ fn handle_external_call(
         ValueOrArray::MemoryAddress(offset) => offset,
         _ => panic!("Call instruction's target address input should be a basic MemoryAddress",),
     };
-    // The args are a slice, and this is represented as a (Field, HeapVector).
-    // The field is the length (memory address) and the HeapVector has the data and length again.
-    // This is an ACIR internal representation detail that leaks to the SSA.
-    // Observe that below, we use `inputs[4]` and therefore skip the length field.
-    let args = &inputs[4];
-    let (args_offset_ptr, args_size_offset) = match args {
-        ValueOrArray::HeapVector(HeapVector { pointer, size }) => (pointer, size),
-        _ => panic!("Call instruction's args input should be a HeapVector input"),
+    let args = &inputs[3];
+    let args_offset_ptr = match args {
+        ValueOrArray::HeapArray(HeapArray { pointer, size: _ }) => pointer,
+        _ => panic!("Call instruction's args input should be a HeapArray input"),
     };
 
     avm_instrs.push(AvmInstruction {
@@ -628,7 +624,7 @@ fn handle_external_call(
                 .direct_operand(l2_gas_offset)
                 .direct_operand(da_gas_offset)
                 .direct_operand(address_offset)
-                .direct_operand(args_size_offset)
+                // .direct_operand(args_size_offset)
                 .indirect_operand(args_offset_ptr)
                 .build(),
         ),
@@ -636,7 +632,7 @@ fn handle_external_call(
             AvmOperand::U16 { value: l2_gas_offset.to_usize() as u16 },
             AvmOperand::U16 { value: da_gas_offset.to_usize() as u16 },
             AvmOperand::U16 { value: address_offset.to_usize() as u16 },
-            AvmOperand::U16 { value: args_size_offset.to_usize() as u16 },
+            // AvmOperand::U16 { value: args_size_offset.to_usize() as u16 },
             AvmOperand::U16 { value: args_offset_ptr.to_usize() as u16 },
         ],
         ..Default::default()

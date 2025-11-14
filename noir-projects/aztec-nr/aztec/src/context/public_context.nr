@@ -287,14 +287,14 @@ impl PublicContext {
     /// # Returns
     /// * `[Field]` - Return data from the called function
     ///
-    pub unconstrained fn call_public_function(
+    pub unconstrained fn call_public_function<let N: u32>(
         _self: Self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,
-        args: [Field],
+        args: [Field; N],
         gas_opts: GasOpts,
     ) -> [Field] {
-        let calldata = args.push_front(function_selector.to_field());
+        let calldata = [function_selector.to_field()].concat(args);
 
         call(
             gas_opts.l2_gas.unwrap_or(MAX_U32_VALUE),
@@ -332,14 +332,14 @@ impl PublicContext {
     /// # Returns
     /// * `[Field]` - Return data from the called function
     ///
-    pub unconstrained fn static_call_public_function(
+    pub unconstrained fn static_call_public_function<let N: u32>(
         _self: Self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,
-        args: [Field],
+        args: [Field; N],
         gas_opts: GasOpts,
     ) -> [Field] {
-        let calldata = args.push_front(function_selector.to_field());
+        let calldata = [function_selector.to_field()].concat(args);
 
         call_static(
             gas_opts.l2_gas.unwrap_or(MAX_U32_VALUE),
@@ -861,20 +861,20 @@ unconstrained fn send_l2_to_l1_msg(recipient: EthAddress, content: Field) {
     send_l2_to_l1_msg_opcode(recipient, content)
 }
 
-unconstrained fn call(
+unconstrained fn call<let N: u32>(
     l2_gas_allocation: u32,
     da_gas_allocation: u32,
     address: AztecAddress,
-    args: [Field],
+    args: [Field; N],
 ) {
     call_opcode(l2_gas_allocation, da_gas_allocation, address, args)
 }
 
-unconstrained fn call_static(
+unconstrained fn call_static<let N: u32>(
     l2_gas_allocation: u32,
     da_gas_allocation: u32,
     address: AztecAddress,
-    args: [Field],
+    args: [Field; N],
 ) {
     call_static_opcode(l2_gas_allocation, da_gas_allocation, address, args)
 }
@@ -1002,19 +1002,19 @@ unconstrained fn return_opcode(returndata: [Field]) {}
 unconstrained fn revert_opcode(revertdata: [Field]) {}
 
 #[oracle(avmOpcodeCall)]
-unconstrained fn call_opcode(
+unconstrained fn call_opcode<let N: u32>(
     l2_gas_allocation: u32,
     da_gas_allocation: u32,
     address: AztecAddress,
-    args: [Field],
+    args: [Field; N],
 ) {}
 
 #[oracle(avmOpcodeStaticCall)]
-unconstrained fn call_static_opcode(
+unconstrained fn call_static_opcode<let N: u32>(
     l2_gas_allocation: u32,
     da_gas_allocation: u32,
     address: AztecAddress,
-    args: [Field],
+    args: [Field; N],
 ) {}
 
 #[oracle(avmOpcodeSuccessCopy)]

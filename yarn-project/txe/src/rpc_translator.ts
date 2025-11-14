@@ -266,12 +266,7 @@ export class RPCTranslator {
     ]);
   }
 
-  // Since the argument is a slice, noir automatically adds a length field to oracle call.
-  privateStoreInExecutionCache(
-    _foreignLength: ForeignCallSingle,
-    foreignValues: ForeignCallArray,
-    foreignHash: ForeignCallSingle,
-  ) {
+  privateStoreInExecutionCache(foreignValues: ForeignCallArray, foreignHash: ForeignCallSingle) {
     const values = fromArray(foreignValues);
     const hash = fromSingle(foreignHash);
 
