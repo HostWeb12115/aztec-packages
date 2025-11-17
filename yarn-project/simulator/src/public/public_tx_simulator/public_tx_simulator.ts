@@ -1,20 +1,17 @@
-import { AVM_MAX_PROCESSABLE_L2_GAS, DEFAULT_MAX_DEBUG_LOG_MEMORY_READS } from '@aztec/constants';
+import { AVM_MAX_PROCESSABLE_L2_GAS } from '@aztec/constants';
 import { Fr } from '@aztec/foundation/fields';
 import { type Logger, createLogger } from '@aztec/foundation/log';
 import { ProtocolContractAddress, ProtocolContractsList } from '@aztec/protocol-contracts';
 import { computeFeePayerBalanceStorageSlot } from '@aztec/protocol-contracts/fee-juice';
 import {
-  AvmCircuitInputs,
-  AvmCircuitPublicInputs,
   AvmExecutionHints,
-  type AvmProvingRequest,
   AvmTxHint,
-  type RevertCode,
+  type ProcessedPhase,
+  PublicSimulatorConfig,
+  PublicTxResult,
 } from '@aztec/stdlib/avm';
 import { SimulationError } from '@aztec/stdlib/errors';
-import type { Gas, GasUsed } from '@aztec/stdlib/gas';
-import type { DebugLog } from '@aztec/stdlib/logs';
-import { ProvingRequestType } from '@aztec/stdlib/proofs';
+import type { Gas } from '@aztec/stdlib/gas';
 import type { MerkleTreeWriteOperations } from '@aztec/stdlib/trees';
 import {
   type GlobalVariables,
@@ -40,33 +37,6 @@ import {
 import type { PublicPersistableStateManager } from '../state_manager/state_manager.js';
 import { PublicTxContext } from './public_tx_context.js';
 import type { PublicTxSimulatorInterface } from './public_tx_simulator_interface.js';
-
-export type ProcessedPhase = {
-  phase: TxExecutionPhase;
-  durationMs?: number;
-  returnValues: NestedProcessReturnValues[];
-  reverted: boolean;
-  revertReason?: SimulationError;
-};
-
-export type PublicTxResult = {
-  avmProvingRequest: AvmProvingRequest;
-  /** Gas used during the execution of this tx */
-  gasUsed: GasUsed;
-  revertCode: RevertCode;
-  /** Revert reason, if any */
-  revertReason?: SimulationError;
-  processedPhases: ProcessedPhase[];
-  logs: DebugLog[];
-};
-
-export type PublicTxSimulatorConfig = {
-  proverId: Fr;
-  doMerkleOperations: boolean;
-  skipFeeEnforcement: boolean;
-  clientInitiatedSimulation: boolean;
-  maxDebugLogMemoryReads: number;
-};
 
 // The errors below are only thrown here in the public tx simulator,
 // and only during revertible phases (revertible insertions, app logic and teardown).
@@ -105,21 +75,15 @@ class TxSimTeardownRevert extends Error {
 
 export class PublicTxSimulator implements PublicTxSimulatorInterface {
   protected log: Logger;
-  private config: PublicTxSimulatorConfig;
+  protected readonly config: PublicSimulatorConfig;
 
   constructor(
     protected merkleTree: MerkleTreeWriteOperations,
     protected contractsDB: PublicContractsDB,
     protected globalVariables: GlobalVariables,
-    config?: Partial<PublicTxSimulatorConfig>,
+    config?: Partial<PublicSimulatorConfig>,
   ) {
-    this.config = {
-      proverId: config?.proverId ?? Fr.ZERO,
-      doMerkleOperations: config?.doMerkleOperations ?? false,
-      skipFeeEnforcement: config?.skipFeeEnforcement ?? false,
-      clientInitiatedSimulation: config?.clientInitiatedSimulation ?? false,
-      maxDebugLogMemoryReads: config?.maxDebugLogMemoryReads ?? DEFAULT_MAX_DEBUG_LOG_MEMORY_READS,
-    };
+    this.config = PublicSimulatorConfig.from(config ?? {});
     this.log = createLogger(`simulator:public_tx_simulator`);
   }
 
@@ -148,7 +112,6 @@ export class PublicTxSimulator implements PublicTxSimulatorInterface {
       tx,
       this.globalVariables,
       ProtocolContractsList, // imported from file
-      this.config.doMerkleOperations,
       this.config.proverId,
     );
 
@@ -232,23 +195,22 @@ export class PublicTxSimulator implements PublicTxSimulatorInterface {
     await this.payFee(context);
 
     const publicInputs = await context.generateAvmCircuitPublicInputs();
-    const avmProvingRequest = PublicTxSimulator.generateProvingRequest(publicInputs, hints);
-
     const revertCode = context.getFinalRevertCode();
 
-    return {
-      avmProvingRequest,
-      gasUsed: {
+    return new PublicTxResult(
+      /*gasUsed=*/ {
         totalGas: context.getActualGasUsed(),
         teardownGas: context.teardownGasUsed,
         publicGas: context.getActualPublicGasUsed(),
         billedGas: context.getTotalGasUsed(),
       },
-      revertCode,
-      revertReason: context.revertReason,
-      processedPhases: processedPhases,
-      logs: context.state.getActiveStateManager().getLogs(),
-    };
+      /*revertCode=*/ revertCode,
+      /*revertReason=*/ context.revertReason,
+      /*processedPhases=*/ processedPhases,
+      /*logs=*/ context.state.getActiveStateManager().getLogs(),
+      /*hints=*/ hints,
+      /*publicInputs=*/ publicInputs,
+    );
   }
 
   protected computeTxHash(tx: Tx) {
@@ -373,8 +335,7 @@ export class PublicTxSimulator implements PublicTxSimulatorInterface {
       request.isStaticCall,
       calldata,
       allocatedGas,
-      this.config.clientInitiatedSimulation,
-      this.config.maxDebugLogMemoryReads,
+      this.config,
     );
     const avmCallResult = await simulator.execute();
     return avmCallResult.finalize();
@@ -524,18 +485,5 @@ export class PublicTxSimulator implements PublicTxSimulatorInterface {
 
     const updatedBalance = currentBalance.sub(txFee);
     await stateManager.writeStorage(feeJuiceAddress, balanceSlot, updatedBalance, true);
-  }
-
-  /**
-   * Generate the proving request for the AVM circuit.
-   */
-  private static generateProvingRequest(
-    publicInputs: AvmCircuitPublicInputs,
-    hints: AvmExecutionHints,
-  ): AvmProvingRequest {
-    return {
-      type: ProvingRequestType.PUBLIC_VM,
-      inputs: new AvmCircuitInputs(hints, publicInputs),
-    };
   }
 }

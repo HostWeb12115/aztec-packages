@@ -37,7 +37,7 @@ provider "helm" {
 
 module "web3signer" {
   # Only deploy web3signer if we have validators or provers that need to publish to L1
-  count = tonumber(var.VALIDATOR_REPLICAS) > 0 || (tonumber(var.PROVER_REPLICAS) > 0 && !var.PROVER_NODE_DISABLE_PROOF_PUBLISH) ? 1 : 0
+  count = tonumber(var.VALIDATOR_REPLICAS) > 0 ? 1 : 0
 
   source                                   = "../modules/web3signer"
   NAMESPACE                                = var.NAMESPACE
@@ -50,6 +50,7 @@ module "web3signer" {
   NODE_COUNT                               = tonumber(var.VALIDATOR_REPLICAS)
   VALIDATOR_MNEMONIC_START_INDEX           = tonumber(var.VALIDATOR_MNEMONIC_START_INDEX)
   VALIDATOR_PUBLISHER_MNEMONIC_START_INDEX = tonumber(var.VALIDATOR_PUBLISHER_MNEMONIC_START_INDEX)
+  VALIDATOR_PUBLISHERS_PER_VALIDATOR_KEY   = tonumber(var.VALIDATOR_PUBLISHERS_PER_VALIDATOR_KEY)
   PROVER_COUNT                             = tonumber(var.PROVER_REPLICAS)
   PUBLISHERS_PER_PROVER                    = tonumber(var.PROVER_PUBLISHERS_PER_PROVER)
   PROVER_PUBLISHER_MNEMONIC_START_INDEX    = tonumber(var.PROVER_PUBLISHER_MNEMONIC_START_INDEX)
@@ -166,6 +167,8 @@ locals {
         "validator.node.proverRealProofs"                          = var.PROVER_REAL_PROOFS
         "validator.node.env.L1_PRIORITY_FEE_BUMP_PERCENTAGE"       = var.VALIDATOR_L1_PRIORITY_FEE_BUMP_PERCENTAGE
         "validator.node.env.L1_PRIORITY_FEE_RETRY_BUMP_PERCENTAGE" = var.VALIDATOR_L1_PRIORITY_FEE_RETRY_BUMP_PERCENTAGE
+        "validator.node.env.BLOB_ALLOW_EMPTY_SOURCES"              = var.BLOB_ALLOW_EMPTY_SOURCES
+        "validator.node.logLevel"                                  = var.LOG_LEVEL
       }
       boot_node_host_path  = "validator.node.env.BOOT_NODE_HOST"
       bootstrap_nodes_path = "validator.node.env.BOOTSTRAP_NODES"
@@ -185,24 +188,28 @@ locals {
           "node.mnemonic"                                       = var.PROVER_MNEMONIC
           "node.mnemonicStartIndex"                             = var.PROVER_PUBLISHER_MNEMONIC_START_INDEX
           "node.node.proverRealProofs"                          = var.PROVER_REAL_PROOFS
+          "node.node.logLevel"                                  = var.LOG_LEVEL
           "node.node.env.PROVER_FAILED_PROOF_STORE"             = var.PROVER_FAILED_PROOF_STORE
           "node.node.env.KEY_INDEX_START"                       = var.PROVER_PUBLISHER_MNEMONIC_START_INDEX
           "node.node.env.PUBLISHER_KEY_INDEX_START"             = var.PROVER_PUBLISHER_MNEMONIC_START_INDEX
           "node.node.env.PUBLISHERS_PER_PROVER"                 = var.PROVER_PUBLISHERS_PER_PROVER
           "node.node.env.PROVER_NODE_DISABLE_PROOF_PUBLISH"     = var.PROVER_NODE_DISABLE_PROOF_PUBLISH
           "node.node.env.P2P_TX_POOL_DELETE_TXS_AFTER_REORG"    = var.P2P_TX_POOL_DELETE_TXS_AFTER_REORG
+          "node.node.env.BLOB_ALLOW_EMPTY_SOURCES"              = var.BLOB_ALLOW_EMPTY_SOURCES
           "broker.node.proverRealProofs"                        = var.PROVER_REAL_PROOFS
+          "broker.node.logLevel"                                = var.LOG_LEVEL
           "broker.node.env.BOOTSTRAP_NODES"                     = "asdf"
           "agent.node.proverRealProofs"                         = var.PROVER_REAL_PROOFS
           "agent.replicaCount"                                  = var.PROVER_REPLICAS
           "agent.node.env.BOOTSTRAP_NODES"                      = "asdf"
           "agent.node.env.AGENT_COUNT"                          = var.PROVER_AGENTS_PER_PROVER
+          "agent.node.logLevel"                                 = var.LOG_LEVEL
           "node.node.env.L1_PRIORITY_FEE_BUMP_PERCENTAGE"       = var.PROVER_L1_PRIORITY_FEE_BUMP_PERCENTAGE
           "node.node.env.L1_PRIORITY_FEE_RETRY_BUMP_PERCENTAGE" = var.PROVER_L1_PRIORITY_FEE_RETRY_BUMP_PERCENTAGE
         },
         # Only set web3signerUrl if proof publishing is enabled
         !var.PROVER_NODE_DISABLE_PROOF_PUBLISH ? {
-          "node.web3signerUrl" = "http://${var.RELEASE_PREFIX}-signer-web3signer.${var.NAMESPACE}.svc.cluster.local:9000/"
+          "node.node.web3signerUrl" = "http://${var.RELEASE_PREFIX}-signer-web3signer.${var.NAMESPACE}.svc.cluster.local:9000/"
         } : {}
       )
       boot_node_host_path  = "node.node.env.BOOT_NODE_HOST"
@@ -240,16 +247,31 @@ locals {
           }
         }
       })] : []
-      custom_settings = {
-        "nodeType"                                    = "rpc"
-        "replicaCount"                                = var.RPC_REPLICAS
-        "node.proverRealProofs"                       = var.PROVER_REAL_PROOFS
-        "ingress.rpc.enabled"                         = var.RPC_INGRESS_ENABLED
-        "ingress.rpc.host"                            = var.RPC_INGRESS_HOST
-        "node.env.AWS_ACCESS_KEY_ID"                  = var.R2_ACCESS_KEY_ID
-        "node.env.AWS_SECRET_ACCESS_KEY"              = var.R2_SECRET_ACCESS_KEY
-        "node.env.P2P_TX_POOL_DELETE_TXS_AFTER_REORG" = var.P2P_TX_POOL_DELETE_TXS_AFTER_REORG
-      }
+      custom_settings = merge(
+        {
+          "nodeType"                                    = "rpc"
+          "replicaCount"                                = var.RPC_REPLICAS
+          "node.proverRealProofs"                       = var.PROVER_REAL_PROOFS
+          "ingress.rpc.enabled"                         = var.RPC_INGRESS_ENABLED
+          "ingress.rpc.host"                            = var.RPC_INGRESS_HOST
+          "node.env.AWS_ACCESS_KEY_ID"                  = var.R2_ACCESS_KEY_ID
+          "node.env.AWS_SECRET_ACCESS_KEY"              = var.R2_SECRET_ACCESS_KEY
+          "node.env.P2P_TX_POOL_DELETE_TXS_AFTER_REORG" = var.P2P_TX_POOL_DELETE_TXS_AFTER_REORG
+          "node.env.BLOB_ALLOW_EMPTY_SOURCES"           = var.BLOB_ALLOW_EMPTY_SOURCES
+          "node.logLevel"                               = var.LOG_LEVEL
+        },
+        # Only set RPC mnemonic config in fisherman mode)
+        var.FISHERMAN_MODE ? {
+          "node.secret.envEnabled"       = true
+          "node.env.FISHERMAN_MODE"      = "true"
+          "node.secret.mnemonic"         = var.FISHERMAN_MNEMONIC
+          "node.secret.mnemonicIndex"    = var.FISHERMAN_MNEMONIC_START_INDEX
+          "node.env.KEY_INDEX_START"     = var.FISHERMAN_MNEMONIC_START_INDEX
+          "node.logLevel"                = var.FISHERMAN_LOG_LEVEL
+          "node.env.VALIDATORS_PER_NODE" = "1"
+          "node.preStartScript"          = "source /scripts/get-private-key.sh"
+        } : {}
+      )
       boot_node_host_path  = "node.env.BOOT_NODE_HOST"
       bootstrap_nodes_path = "node.env.BOOTSTRAP_NODES"
       wait                 = true
@@ -267,6 +289,7 @@ locals {
         "nodeType"                                    = "archive"
         "node.env.P2P_ARCHIVED_TX_LIMIT"              = "10000000"
         "node.env.P2P_TX_POOL_DELETE_TXS_AFTER_REORG" = var.P2P_TX_POOL_DELETE_TXS_AFTER_REORG
+        "node.env.BLOB_ALLOW_EMPTY_SOURCES"           = var.BLOB_ALLOW_EMPTY_SOURCES
       }
       boot_node_host_path  = "node.env.BOOT_NODE_HOST"
       bootstrap_nodes_path = "node.env.BOOTSTRAP_NODES"

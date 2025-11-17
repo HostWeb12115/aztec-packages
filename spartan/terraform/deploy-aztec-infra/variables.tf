@@ -22,53 +22,33 @@ variable "GCP_REGION" {
 }
 
 variable "P2P_BOOTSTRAP_RESOURCE_PROFILE" {
-  description = "Resource profile to use for the p2p bootstrap (dev or prod)"
+  description = "Resource profile to use for the p2p bootstrap"
   type        = string
   default     = "prod"
-  validation {
-    condition     = contains(["dev", "prod"], var.P2P_BOOTSTRAP_RESOURCE_PROFILE)
-    error_message = "P2P_BOOTSTRAP_RESOURCE_PROFILE must be either 'dev' or 'prod'."
-  }
 }
 
 variable "VALIDATOR_RESOURCE_PROFILE" {
-  description = "Resource profile to use for the validator (dev or prod)"
+  description = "Resource profile to use for the validator"
   type        = string
   default     = "prod"
-  validation {
-    condition     = contains(["dev", "prod"], var.VALIDATOR_RESOURCE_PROFILE)
-    error_message = "VALIDATOR_RESOURCE_PROFILE must be either 'dev' or 'prod'."
-  }
 }
 
 variable "PROVER_RESOURCE_PROFILE" {
-  description = "Resource profile to use for the prover (dev or prod)"
+  description = "Resource profile to use for the prover"
   type        = string
   default     = "prod"
-  validation {
-    condition     = contains(["dev", "prod"], var.PROVER_RESOURCE_PROFILE)
-    error_message = "PROVER_RESOURCE_PROFILE must be either 'dev' or 'prod'."
-  }
 }
 
 variable "RPC_RESOURCE_PROFILE" {
-  description = "Resource profile to use for the rpc (dev or prod)"
+  description = "Resource profile to use for the rpc"
   type        = string
   default     = "prod"
-  validation {
-    condition     = contains(["dev", "prod"], var.RPC_RESOURCE_PROFILE)
-    error_message = "RPC_RESOURCE_PROFILE must be either 'dev' or 'prod'."
-  }
 }
 
 variable "BOT_RESOURCE_PROFILE" {
-  description = "Resource profile to use for the bots (dev or prod)"
+  description = "Resource profile to use for the bots"
   type        = string
   default     = "prod"
-  validation {
-    condition     = contains(["dev", "prod"], var.BOT_RESOURCE_PROFILE)
-    error_message = "BOT_RESOURCE_PROFILE must be either 'dev' or 'prod'."
-  }
 }
 
 variable "K8S_CLUSTER_CONTEXT" {
@@ -251,11 +231,35 @@ variable "PROVER_NODE_DISABLE_PROOF_PUBLISH" {
   default     = false
 }
 
+variable "FISHERMAN_MNEMONIC" {
+  description = "The fisherman mnemonic for RPC nodes (used when validators are disabled, e.g., fisherman mode)"
+  type        = string
+  default     = ""
+}
+
+variable "FISHERMAN_MNEMONIC_START_INDEX" {
+  description = "The fisherman mnemonic start index for RPC nodes (used when validators are disabled)"
+  type        = string
+  default     = 1
+}
+
 variable "OTEL_COLLECTOR_ENDPOINT" {
   description = "Optional OpenTelemetry collector endpoint URL (e.g., http://otel-collector:4318)"
   type        = string
   default     = null
   nullable    = true
+}
+
+variable "LOG_LEVEL" {
+  description = "Log level for all nodes"
+  type        = string
+  default     = "info"
+}
+
+variable "FISHERMAN_LOG_LEVEL" {
+  description = "Log level for fisherman nodes"
+  type        = string
+  default     = "debug"
 }
 
 variable "SPONSORED_FPC" {
@@ -521,4 +525,16 @@ variable "PROVER_AGENTS_PER_PROVER" {
   description = "Number of prover agents per prover"
   type        = string
   default     = 1
+}
+
+variable "BLOB_ALLOW_EMPTY_SOURCES" {
+  description = "Whether to allow starting without any consensus client URLs"
+  type        = bool
+  default     = false
+}
+
+variable "FISHERMAN_MODE" {
+  description = "Whether to run in fisherman mode"
+  type        = bool
+  default     = false
 }
