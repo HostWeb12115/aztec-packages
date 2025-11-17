@@ -9,20 +9,20 @@ import {SafeCast} from "@oz/utils/math/SafeCast.sol";
 contract TipsWrapper {
   using ChainTipsLib for CompressedChainTips;
 
-  function updatePendingBlockNumber(CompressedChainTips _compressedChainTips, uint256 _pendingBlockNumber)
+  function updatePendingCheckpointNumber(CompressedChainTips _compressedChainTips, uint256 _pendingCheckpointNumber)
     public
     pure
     returns (CompressedChainTips)
   {
-    return _compressedChainTips.updatePendingBlockNumber(_pendingBlockNumber);
+    return _compressedChainTips.updatePendingCheckpointNumber(_pendingCheckpointNumber);
   }
 
-  function updateProvenBlockNumber(CompressedChainTips _compressedChainTips, uint256 _provenBlockNumber)
+  function updateProvenCheckpointNumber(CompressedChainTips _compressedChainTips, uint256 _provenCheckpointNumber)
     public
     pure
     returns (CompressedChainTips)
   {
-    return _compressedChainTips.updateProvenBlockNumber(_provenBlockNumber);
+    return _compressedChainTips.updateProvenCheckpointNumber(_provenCheckpointNumber);
   }
 }
 
@@ -32,63 +32,97 @@ contract TipsTest is Test {
 
   TipsWrapper public tipsWrapper = new TipsWrapper();
 
-  function test_compress_uncompress(uint128 _pendingBlockNumber, uint128 _provenBlockNumber) public pure {
+  function test_compress_uncompress(uint128 _pendingCheckpointNumber, uint128 _provenCheckpointNumber) public pure {
     ChainTips memory chainTips =
-      ChainTips({pendingBlockNumber: _pendingBlockNumber, provenBlockNumber: _provenBlockNumber});
+      ChainTips({pendingCheckpointNumber: _pendingCheckpointNumber, provenCheckpointNumber: _provenCheckpointNumber});
 
     CompressedChainTips compressedChainTips = chainTips.compress();
     ChainTips memory decompressedChainTips = compressedChainTips.decompress();
 
-    assertEq(compressedChainTips.getPendingBlockNumber(), chainTips.pendingBlockNumber, "getPendingBlockNumber");
-    assertEq(compressedChainTips.getProvenBlockNumber(), chainTips.provenBlockNumber, "getProvenBlockNumber");
-
-    assertEq(decompressedChainTips.pendingBlockNumber, chainTips.pendingBlockNumber, "decompressed pendingBlockNumber");
-    assertEq(decompressedChainTips.provenBlockNumber, chainTips.provenBlockNumber, "decompressed provenBlockNumber");
-  }
-
-  function test_updatePendingBlockNumber(uint128 _pendingBlockNumber, uint128 _provenBlockNumber) public pure {
-    uint256 pendingBlockNumber = bound(_pendingBlockNumber, 0, type(uint128).max - 1);
-    ChainTips memory a = ChainTips({pendingBlockNumber: pendingBlockNumber, provenBlockNumber: _provenBlockNumber});
-
-    CompressedChainTips b = a.compress();
-    CompressedChainTips c = b.updatePendingBlockNumber(pendingBlockNumber + 1);
-
-    assertEq(c.getPendingBlockNumber(), pendingBlockNumber + 1, "c.getPendingBlockNumber");
-    assertEq(c.getProvenBlockNumber(), _provenBlockNumber, "c.getProvenBlockNumber");
     assertEq(
-      c.getPendingBlockNumber(), b.getPendingBlockNumber() + 1, "c.getPendingBlockNumber != b.getPendingBlockNumber + 1"
+      compressedChainTips.getPendingCheckpointNumber(), chainTips.pendingCheckpointNumber, "getPendingCheckpointNumber"
+    );
+    assertEq(
+      compressedChainTips.getProvenCheckpointNumber(), chainTips.provenCheckpointNumber, "getProvenCheckpointNumber"
+    );
+
+    assertEq(
+      decompressedChainTips.pendingCheckpointNumber,
+      chainTips.pendingCheckpointNumber,
+      "decompressed pendingCheckpointNumber"
+    );
+    assertEq(
+      decompressedChainTips.provenCheckpointNumber,
+      chainTips.provenCheckpointNumber,
+      "decompressed provenCheckpointNumber"
     );
   }
 
-  function test_updatePendingBlockNumberOversized(uint256 _pendingBlockNumber, uint128 _provenBlockNumber) public {
-    ChainTips memory a = ChainTips({pendingBlockNumber: 0, provenBlockNumber: _provenBlockNumber});
-    uint256 pendingBlockNumber = bound(_pendingBlockNumber, uint256(type(uint128).max) + 1, type(uint256).max);
+  function test_updatePendingCheckpointNumber(uint128 _pendingCheckpointNumber, uint128 _provenCheckpointNumber)
+    public
+    pure
+  {
+    uint256 pendingCheckpointNumber = bound(_pendingCheckpointNumber, 0, type(uint128).max - 1);
+    ChainTips memory a =
+      ChainTips({pendingCheckpointNumber: pendingCheckpointNumber, provenCheckpointNumber: _provenCheckpointNumber});
 
     CompressedChainTips b = a.compress();
-    vm.expectRevert(abi.encodeWithSelector(SafeCast.SafeCastOverflowedUintDowncast.selector, 128, pendingBlockNumber));
-    tipsWrapper.updatePendingBlockNumber(b, pendingBlockNumber);
-  }
+    CompressedChainTips c = b.updatePendingCheckpointNumber(pendingCheckpointNumber + 1);
 
-  function test_updateProvenBlockNumber(uint128 _pendingBlockNumber, uint128 _provenBlockNumber) public pure {
-    uint256 provenBlockNumber = bound(_provenBlockNumber, 0, type(uint128).max - 1);
-    ChainTips memory a = ChainTips({pendingBlockNumber: _pendingBlockNumber, provenBlockNumber: provenBlockNumber});
-
-    CompressedChainTips b = a.compress();
-    CompressedChainTips c = b.updateProvenBlockNumber(provenBlockNumber + 1);
-
-    assertEq(c.getPendingBlockNumber(), _pendingBlockNumber, "c.getPendingBlockNumber");
-    assertEq(c.getProvenBlockNumber(), provenBlockNumber + 1, "c.getProvenBlockNumber");
+    assertEq(c.getPendingCheckpointNumber(), pendingCheckpointNumber + 1, "c.getPendingCheckpointNumber");
+    assertEq(c.getProvenCheckpointNumber(), _provenCheckpointNumber, "c.getProvenCheckpointNumber");
     assertEq(
-      c.getProvenBlockNumber(), b.getProvenBlockNumber() + 1, "c.getProvenBlockNumber != b.getProvenBlockNumber + 1"
+      c.getPendingCheckpointNumber(),
+      b.getPendingCheckpointNumber() + 1,
+      "c.getPendingCheckpointNumber != b.getPendingCheckpointNumber + 1"
     );
   }
 
-  function test_updateProvenBlockNumberOversized(uint128 _pendingBlockNumber, uint256 _provenBlockNumber) public {
-    ChainTips memory a = ChainTips({pendingBlockNumber: _pendingBlockNumber, provenBlockNumber: 0});
-    uint256 provenBlockNumber = bound(_provenBlockNumber, uint256(type(uint128).max) + 1, type(uint256).max);
+  function test_updatePendingCheckpointNumberOversized(
+    uint256 _pendingCheckpointNumber,
+    uint128 _provenCheckpointNumber
+  ) public {
+    ChainTips memory a = ChainTips({pendingCheckpointNumber: 0, provenCheckpointNumber: _provenCheckpointNumber});
+    uint256 pendingCheckpointNumber = bound(_pendingCheckpointNumber, uint256(type(uint128).max) + 1, type(uint256).max);
 
     CompressedChainTips b = a.compress();
-    vm.expectRevert(abi.encodeWithSelector(SafeCast.SafeCastOverflowedUintDowncast.selector, 128, provenBlockNumber));
-    tipsWrapper.updateProvenBlockNumber(b, provenBlockNumber);
+    vm.expectRevert(
+      abi.encodeWithSelector(SafeCast.SafeCastOverflowedUintDowncast.selector, 128, pendingCheckpointNumber)
+    );
+    tipsWrapper.updatePendingCheckpointNumber(b, pendingCheckpointNumber);
+  }
+
+  function test_updateProvenCheckpointNumber(uint128 _pendingCheckpointNumber, uint128 _provenCheckpointNumber)
+    public
+    pure
+  {
+    uint256 provenCheckpointNumber = bound(_provenCheckpointNumber, 0, type(uint128).max - 1);
+    ChainTips memory a =
+      ChainTips({pendingCheckpointNumber: _pendingCheckpointNumber, provenCheckpointNumber: provenCheckpointNumber});
+
+    CompressedChainTips b = a.compress();
+    CompressedChainTips c = b.updateProvenCheckpointNumber(provenCheckpointNumber + 1);
+
+    assertEq(c.getPendingCheckpointNumber(), _pendingCheckpointNumber, "c.getPendingCheckpointNumber");
+    assertEq(c.getProvenCheckpointNumber(), provenCheckpointNumber + 1, "c.getProvenCheckpointNumber");
+    assertEq(
+      c.getProvenCheckpointNumber(),
+      b.getProvenCheckpointNumber() + 1,
+      "c.getProvenCheckpointNumber != b.getProvenCheckpointNumber + 1"
+    );
+  }
+
+  function test_updateProvenCheckpointNumberOversized(
+    uint128 _pendingCheckpointNumber,
+    uint256 _provenCheckpointNumber
+  ) public {
+    ChainTips memory a = ChainTips({pendingCheckpointNumber: _pendingCheckpointNumber, provenCheckpointNumber: 0});
+    uint256 provenCheckpointNumber = bound(_provenCheckpointNumber, uint256(type(uint128).max) + 1, type(uint256).max);
+
+    CompressedChainTips b = a.compress();
+    vm.expectRevert(
+      abi.encodeWithSelector(SafeCast.SafeCastOverflowedUintDowncast.selector, 128, provenCheckpointNumber)
+    );
+    tipsWrapper.updateProvenCheckpointNumber(b, provenCheckpointNumber);
   }
 }

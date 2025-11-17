@@ -24,11 +24,11 @@
   "messages": {
     "l2ToL1Messages": []
   },
-  "block": {
+  "checkpoint": {
     "archive": "0x08c60bf25db567d2706a3fb63a54a2d9424177cf67dba6cf5fff27b844e0d243",
     "blobCommitments": "0x01af6d0dfff63f67b5e7129fcdac8635cdb149960eefd640ef9008436595d9c2c3ef760011ddb4098547c156fb677ba0b4",
     "batchedBlobInputs": "0x01440a95caeb3adbeba93351e6d52d29af6a65e986c652f85ab71af0dbf42a7e17f7c027cfdbbf9df77ca5918bc7d113d05acd245632b8ca83fc4bff3f3d193e38e3f09660588021925f76e9464f298cd8003e8194e97465c66e9013fb0b77218ceaa4daaa534c1e107920e7f6930beba287e18c54267a91ccf49d2052ec889977e1977758cba9a4bb37e4f176da9ce7a8fb223f239159eac35e93c1f7b0b0ba356fdb439bb4077ac07cbbf4aeb73008bb41ce6c8d85e96bee56d4679b2c897a",
-    "blockNumber": 2,
+    "checkpointNumber": 2,
     "body": "0x00000000",
     "header": {
       "lastArchiveRoot": "0x281d898df1cfa46a8e1aef0d8b7a97cb459ad19323ca84ad76709a31622985fa",
