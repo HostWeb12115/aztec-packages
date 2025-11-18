@@ -57,8 +57,8 @@ export async function proverStats(opts: {
   if (rawLogs && !provingTimeout) {
     log(`l1_block_number, l2_block_number, prover_id, tx_hash`);
     for (const event of events) {
-      const { l1BlockNumber, l2BlockNumber, proverId, txHash } = event;
-      log(`${l1BlockNumber}, ${l2BlockNumber}, ${proverId}, ${txHash}`);
+      const { l1BlockNumber, checkpointNumber, proverId, txHash } = event;
+      log(`${l1BlockNumber}, ${checkpointNumber}, ${proverId}, ${txHash}`);
     }
     return;
   }
@@ -68,14 +68,21 @@ export async function proverStats(opts: {
     const stats = groupBy(events, 'proverId');
     log(`prover_id, total_blocks_proven`);
     for (const proverId in stats) {
-      const uniqueBlocks = new Set(stats[proverId].map(e => e.l2BlockNumber));
+      const uniqueBlocks = new Set(stats[proverId].map(e => e.checkpointNumber));
       log(`${proverId}, ${uniqueBlocks.size}`);
     }
     return;
   }
 
   // But if we do, fetch the events for each block submitted, so we can look up their timestamp
-  const blockEvents = await getL2BlockEvents(startBlock, lastBlockNum, batchSize, debugLog, publicClient, rollup);
+  const blockEvents = await getCheckpointProposedEvents(
+    startBlock,
+    lastBlockNum,
+    batchSize,
+    debugLog,
+    publicClient,
+    rollup,
+  );
   debugLog.verbose(
     `First L2 block within range is ${blockEvents[0]?.args.checkpointNumber} at L1 block ${blockEvents[0]?.blockNumber}`,
   );
@@ -103,14 +110,14 @@ export async function proverStats(opts: {
   if (rawLogs) {
     log(`l1_block_number, l2_block_number, l2_block_submission_timestamp, proof_timestamp, prover_id, tx_hash`);
     for (const event of events) {
-      const { l1BlockNumber, l2BlockNumber, proverId, txHash } = event;
-      const uploadedBlockNumber = l2BlockSubmissions[l2BlockNumber.toString()];
+      const { l1BlockNumber, checkpointNumber, proverId, txHash } = event;
+      const uploadedBlockNumber = l2BlockSubmissions[checkpointNumber.toString()];
       if (!uploadedBlockNumber) {
         continue;
       }
       const uploadedTimestamp = l1BlockTimestamps[uploadedBlockNumber.toString()];
       const provenTimestamp = l1BlockTimestamps[l1BlockNumber.toString()];
-      log(`${l1BlockNumber}, ${l2BlockNumber}, ${uploadedTimestamp}, ${provenTimestamp}, ${proverId}, ${txHash}`);
+      log(`${l1BlockNumber}, ${checkpointNumber}, ${uploadedTimestamp}, ${provenTimestamp}, ${proverId}, ${txHash}`);
     }
     return;
   }
@@ -120,17 +127,17 @@ export async function proverStats(opts: {
     compactArray(
       blocks.map(e => {
         const provenTimestamp = l1BlockTimestamps[e.l1BlockNumber.toString()];
-        const uploadedBlockNumber = l2BlockSubmissions[e.l2BlockNumber.toString()];
+        const uploadedBlockNumber = l2BlockSubmissions[e.checkpointNumber.toString()];
         if (!uploadedBlockNumber) {
           debugLog.verbose(
-            `Skipping ${proverId}'s proof for L2 block ${e.l2BlockNumber} as it was before the start block`,
+            `Skipping ${proverId}'s proof for L2 block ${e.checkpointNumber} as it was before the start block`,
           );
           return undefined;
         }
         const uploadedTimestamp = l1BlockTimestamps[uploadedBlockNumber.toString()];
         const provingTime = provenTimestamp - uploadedTimestamp;
         debugLog.debug(
-          `prover=${e.proverId} blockNumber=${e.l2BlockNumber} uploaded=${uploadedTimestamp} proven=${provenTimestamp} time=${provingTime}`,
+          `prover=${e.proverId} blockNumber=${e.checkpointNumber} uploaded=${uploadedTimestamp} proven=${provenTimestamp} time=${provingTime}`,
         );
         return { provenTimestamp, uploadedTimestamp, provingTime, ...e };
       }),
@@ -141,8 +148,8 @@ export async function proverStats(opts: {
   for (const proverId in stats) {
     const blocks = stats[proverId];
     const withinTimeout = blocks.filter(b => b.provingTime <= provingTimeout);
-    const uniqueBlocksWithinTimeout = new Set(withinTimeout.map(e => e.l2BlockNumber));
-    const uniqueBlocks = new Set(blocks.map(e => e.l2BlockNumber));
+    const uniqueBlocksWithinTimeout = new Set(withinTimeout.map(e => e.checkpointNumber));
+    const uniqueBlocks = new Set(blocks.map(e => e.checkpointNumber));
     const avgProvingTime =
       blocks.length === 0 ? 0 : Math.ceil(Number(blocks.reduce((acc, b) => acc + b.provingTime, 0n)) / blocks.length);
 
@@ -171,7 +178,7 @@ async function getL2ProofVerifiedEvents(
   return events;
 }
 
-async function getL2BlockEvents(
+async function getCheckpointProposedEvents(
   startBlock: bigint,
   lastBlockNum: bigint,
   batchSize: bigint,

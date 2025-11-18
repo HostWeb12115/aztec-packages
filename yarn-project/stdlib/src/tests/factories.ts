@@ -77,7 +77,7 @@ import {
 import { PublicDataRead } from '../avm/public_data_read.js';
 import { PublicDataWrite } from '../avm/public_data_write.js';
 import { AztecAddress } from '../aztec-address/index.js';
-import { L2BlockHeader } from '../block/index.js';
+import { L2BlockHeader } from '../block/l2_block_header.js';
 import {
   type ContractClassPublic,
   ContractDeploymentData,
@@ -296,7 +296,12 @@ export function makeContractStorageRead(seed = 1): ContractStorageRead {
 }
 
 function makeTxConstantData(seed = 1) {
-  return new TxConstantData(makeHeader(seed), makeTxContext(seed + 0x100), new Fr(seed + 0x200), new Fr(seed + 0x201));
+  return new TxConstantData(
+    makeBlockHeader(seed),
+    makeTxContext(seed + 0x100),
+    new Fr(seed + 0x200),
+    new Fr(seed + 0x201),
+  );
 }
 
 function makePaddedTuple<T, N extends number>(
@@ -663,7 +668,7 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
     contractClassLogsHashes: makeClaimedLengthArray(MAX_CONTRACT_CLASS_LOGS_PER_TX, makeCountedLogHash, seed + 0xa00),
     startSideEffectCounter: fr(seed + 0x849),
     endSideEffectCounter: fr(seed + 0x850),
-    anchorBlockHeader: makeHeader(seed + 0xd00, undefined),
+    anchorBlockHeader: makeBlockHeader(seed + 0xd00),
     txContext: makeTxContext(seed + 0x1400),
     isFeePayer: false,
   });
@@ -869,23 +874,15 @@ export function makeContentCommitment(seed = 0): ContentCommitment {
   return new ContentCommitment(fr(seed + 0x100), fr(seed + 0x200), fr(seed + 0x300));
 }
 
-/**
- * Makes header.
- */
-export function makeHeader(
+export function makeBlockHeader(
   seed = 0,
-  blockNumber: number | undefined = undefined,
-  slotNumber: number | undefined = undefined,
-  overrides: Partial<FieldsOf<BlockHeader>> = {},
+  overrides: Partial<FieldsOf<Omit<BlockHeader, 'globalVariables'>>> & Partial<FieldsOf<GlobalVariables>> = {},
 ): BlockHeader {
   return BlockHeader.from({
     lastArchive: makeAppendOnlyTreeSnapshot(seed + 0x100),
     state: makeStateReference(seed + 0x200),
     spongeBlobHash: fr(seed + 0x300),
-    globalVariables: makeGlobalVariables((seed += 0x700), {
-      ...(blockNumber ? { blockNumber } : {}),
-      ...(slotNumber ? { slotNumber: new Fr(slotNumber) } : {}),
-    }),
+    globalVariables: makeGlobalVariables((seed += 0x700), overrides),
     totalFees: fr(seed + 0x800),
     totalManaUsed: fr(seed + 0x900),
     ...overrides,

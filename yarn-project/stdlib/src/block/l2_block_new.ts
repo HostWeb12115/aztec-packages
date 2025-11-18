@@ -4,6 +4,7 @@ import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { z } from 'zod';
 
+import { makeAppendOnlyTreeSnapshot, makeBlockHeader } from '../tests/factories.js';
 import { AppendOnlyTreeSnapshot } from '../trees/append_only_tree_snapshot.js';
 import { BlockHeader } from '../tx/block_header.js';
 import { Body } from './body.js';
@@ -100,6 +101,37 @@ export class L2BlockNew {
       l1ToL2MessageRoot: isFirstBlock ? this.header.state.l1ToL2MessageTree.root : undefined,
       txs: this.body.toTxBlobData(),
     };
+  }
+
+  /**
+   * Creates an L2 block containing random data.
+   * @param l2BlockNum - The number of the L2 block.
+   * @param txsPerBlock - The number of transactions to include in the block.
+   * @param numPublicCallsPerTx - The number of public function calls to include in each transaction.
+   * @param numPublicLogsPerCall - The number of public logs per 1 public function invocation.
+   * @param inHash - The hash of the L1 to L2 messages subtree which got inserted in this block.
+   * @returns The L2 block.
+   */
+  static async random(
+    blockNumber: number,
+    {
+      txsPerBlock = 1,
+      txOptions = {},
+      makeTxOptions,
+      ...blockHeaderOverrides
+    }: {
+      txsPerBlock?: number;
+      txOptions?: Partial<Parameters<typeof Body.random>[0]>;
+      makeTxOptions?: (txIndex: number) => Partial<Parameters<typeof Body.random>[0]>;
+    } & Partial<Parameters<typeof makeBlockHeader>[1]> = {},
+  ): Promise<L2BlockNew> {
+    const body = await Body.random({ txsPerBlock, makeTxOptions, ...txOptions });
+
+    return new L2BlockNew(
+      makeAppendOnlyTreeSnapshot(blockNumber + 1),
+      makeBlockHeader(0, { blockNumber, ...blockHeaderOverrides }),
+      body,
+    );
   }
 
   /**

@@ -26,6 +26,7 @@ import {
  */
 export class LightweightCheckpointBuilder {
   private readonly logger = createLogger('lightweight-checkpoint-builder');
+  private checkpointNumber: number | undefined;
   private constants: CheckpointConstantData | undefined;
   private l1ToL2Messages: Fr[] = [];
   private lastArchives: AppendOnlyTreeSnapshot[] = [];
@@ -39,11 +40,17 @@ export class LightweightCheckpointBuilder {
   ) {}
 
   async startNewCheckpoint(
+    checkpointNumber: number,
     constants: CheckpointConstantData,
     l1ToL2Messages: Fr[],
     totalNumBlobFields: number,
   ): Promise<void> {
-    this.logger.debug('Starting new checkpoint', { constants: constants.toInspect(), l1ToL2Messages });
+    this.logger.debug('Starting new checkpoint', {
+      checkpointNumber,
+      constants: constants.toInspect(),
+      l1ToL2Messages,
+    });
+    this.checkpointNumber = checkpointNumber;
     this.constants = constants;
 
     // Insert l1-to-l2 messages into the tree.
@@ -136,6 +143,6 @@ export class LightweightCheckpointBuilder {
       totalManaUsed,
     });
 
-    return new Checkpoint(newArchive, header, blocks);
+    return new Checkpoint(newArchive, header, blocks, this.checkpointNumber!);
   }
 }
