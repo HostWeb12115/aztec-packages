@@ -7,6 +7,7 @@ import {
   computeL2ToL1MembershipWitnessFromMessagesInEpoch,
   getL2ToL1MessageLeafId,
 } from './l2_to_l1_membership.js';
+import { computeEpochOutHash } from './out_hash.js';
 
 describe('L2 to L1 membership', () => {
   let foundLeafIds: Set<bigint>;
@@ -37,15 +38,28 @@ describe('L2 to L1 membership', () => {
   };
 
   const verifyMembershipForMessagesInEpoch = (messagesInEpoch: Fr[][][][]): L2ToL1MembershipWitness[] => {
+    let root = Fr.ZERO;
     const messages = messagesInEpoch.flat(3);
-    return messages.map(msg => {
+    const witnesses = messages.map((msg, i) => {
       const witness = computeL2ToL1MembershipWitnessFromMessagesInEpoch(messagesInEpoch, msg);
       const leafId = getL2ToL1MessageLeafId(witness);
       expect(foundLeafIds.has(leafId)).toBe(false);
       foundLeafIds.add(leafId);
       verifyMembership(msg, witness);
+
+      if (i === 0) {
+        root = witness.root;
+      } else {
+        expect(witness.root).toEqual(root);
+      }
+
       return witness;
     });
+
+    const computedRoot = computeEpochOutHash(messagesInEpoch);
+    expect(root).toEqual(computedRoot);
+
+    return witnesses;
   };
 
   beforeEach(() => {
@@ -847,6 +861,37 @@ describe('L2 to L1 membership', () => {
         }
       }
       verifyMembershipForMessagesInEpoch(messagesInEpoch);
+    });
+  });
+
+  describe('static leaf ids', () => {
+    it('should preserve the same leaf ids when more checkpoints are added to the epoch', () => {
+      const messagesInShortEpoch = [
+        [[[], msgHashes(3), []]], // 3 messages in checkpoint 0
+        [[msgHashes(1)], [], [msgHashes(5)]], // 6 messages in checkpoint 1
+        [[msgHashes(2)], [[], msgHashes(3)], []], // 5 messages in checkpoint 2
+      ];
+      verifyMembershipForMessagesInEpoch(messagesInShortEpoch);
+
+      // Make a copy of foundLeafIds and reset it so that we can run verifyMembershipForMessagesInEpoch again.
+      const foundLeafIdsInShortEpoch = [...foundLeafIds];
+      expect(foundLeafIdsInShortEpoch.length).toBe(3 + 6 + 5);
+      foundLeafIds = new Set();
+
+      const newCheckpoints = [
+        [[], [], [msgHashes(1)], [msgHashes(10)]], // 11 message in checkpoint 3
+        [[msgHashes(2)], [msgHashes(2)]], // 4 message in checkpoint 4
+        [[msgHashes(7)]], // 7 message in checkpoint 5
+      ];
+      const messagesInLongEpoch = [...messagesInShortEpoch, ...newCheckpoints];
+      verifyMembershipForMessagesInEpoch(messagesInLongEpoch);
+
+      const foundLeafIdsInLongEpoch = [...foundLeafIds];
+      expect(foundLeafIdsInLongEpoch.length).toBe(foundLeafIdsInShortEpoch.length + 11 + 4 + 7);
+
+      // Verify that the leaf ids for the first N messages in the long epoch are exactly the same as they were in the
+      // short epoch.
+      expect(foundLeafIdsInLongEpoch.slice(0, foundLeafIdsInShortEpoch.length)).toEqual(foundLeafIdsInShortEpoch);
     });
   });
 });

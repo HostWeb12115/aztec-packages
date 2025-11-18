@@ -33,9 +33,9 @@ interface IOutbox {
    * @dev Emits `MessageConsumed` when consuming messages
    * @param _message - The L2 to L1 message
    * @param _epoch - The epoch that contains the message we want to consume
-   * @param _leafIndex - The index at the level in the wonky tree where the message is located
+   * @param _leafIndex - The index at the level in the epoch message tree where the message is located
    * @param _path - The sibling path used to prove inclusion of the message, the _path length depends
-   * on the location of the L2 to L1 message in the wonky tree.
+   * on the location of the L2 to L1 message in the epoch message tree.
    */
   function consume(
     DataStructures.L2ToL1Msg calldata _message,
@@ -45,7 +45,7 @@ interface IOutbox {
   ) external;
   // docs:end:outbox_consume
 
-  // docs:start:outbox_has_message_been_consumed_at_block_and_index
+  // docs:start:outbox_has_message_been_consumed_at_epoch_and_index
   /**
    * @notice Checks to see if an L2 to L1 message in a specific epoch has been consumed
    * @dev - This function does not throw. Out-of-bounds access is considered valid, but will always return false
@@ -53,7 +53,7 @@ interface IOutbox {
    * @param _leafId - The unique id of the message leaf
    */
   function hasMessageBeenConsumedAtEpoch(Epoch _epoch, uint256 _leafId) external view returns (bool);
-  // docs:end:outbox_has_message_been_consumed_at_block_and_index
+  // docs:end:outbox_has_message_been_consumed_at_epoch_and_index
 
   /**
    * @notice  Fetch the root data for a given epoch

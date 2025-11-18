@@ -1,4 +1,4 @@
-use crate::root::utils::compute_final_out_hash::compute_final_out_hash;
+use crate::root::utils::compute_epoch_out_hash::compute_epoch_out_hash;
 use super::TestBuilder;
 use types::{
     constants::{AZTEC_MAX_EPOCH_DURATION, CHECKPOINT_MERGE_ROLLUP_VK_INDEX},
@@ -36,7 +36,7 @@ fn non_consecutive_archives() {
 }
 
 #[test]
-fn correct_final_out_hash() {
+fn correct_epoch_out_hash() {
     let mut builder = TestBuilder::new(
         CHECKPOINT_MERGE_ROLLUP_VK_INDEX,
         4,
@@ -55,6 +55,10 @@ fn correct_final_out_hash() {
     builder.assert_expected_public_inputs(pi);
 
     let checkpoint_out_hashes: [Field; AZTEC_MAX_EPOCH_DURATION] = pad_end([11, 0, 0, 44, 0, 66]);
-    let expected_out_hash = compute_final_out_hash(checkpoint_out_hashes);
+    let expected_out_hash = compute_epoch_out_hash(checkpoint_out_hashes);
     assert_eq(pi.out_hash, expected_out_hash);
+
+    // The following is generated from `yarn-project/stdlib/src/messaging/out_hash.test.ts`
+    let out_hash_from_ts = 0x00f83de1d6645701e7faa407066fad314e8c42676338856beb5da9d4062fbb28;
+    assert_eq(expected_out_hash, out_hash_from_ts);
 }

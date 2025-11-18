@@ -45,7 +45,7 @@ library Errors {
   ); // 0x5e789f34
   error Outbox__InvalidRecipient(address expected, address actual); // 0x57aad581
   error Outbox__AlreadyNullified(Epoch epoch, uint256 leafIndex); // 0xfd71c2d4
-  error Outbox__NothingToConsumeAtEpoch(Epoch epoch); // 0xa4508f22
+  error Outbox__NothingToConsumeAtEpoch(Epoch epoch); // 0x5e3d32ce
   error Outbox__PathTooLong();
   error Outbox__LeafIndexOutOfBounds(uint256 leafIndex, uint256 pathLength);
 

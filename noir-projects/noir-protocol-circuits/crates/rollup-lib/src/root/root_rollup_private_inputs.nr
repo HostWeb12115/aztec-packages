@@ -1,7 +1,7 @@
 use crate::{
     abis::{CheckpointRollupPublicInputs, RootRollupPublicInputs},
     checkpoint_merge::{merge_checkpoint_rollups, validate_consecutive_checkpoint_rollups},
-    root::utils::compute_final_out_hash::compute_final_out_hash,
+    root::utils::compute_epoch_out_hash::compute_epoch_out_hash,
 };
 use blob::utils::validate_final_blob_batching_challenges;
 use types::{
@@ -70,7 +70,7 @@ impl RootRollupPrivateInputs {
             merge_checkpoint_rollups(left, right)
         };
 
-        let out_hash = compute_final_out_hash(merged.out_hashes);
+        let out_hash = compute_epoch_out_hash(merged.out_hashes);
 
         // Note: for blob batching, in `validate_consecutive_checkpoint_rollups` we have checked:
         // - left.end_blob_accumulator == right.start_blob_accumulator

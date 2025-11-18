@@ -1,1 +1,1 @@
-pub mod compute_final_out_hash;
+pub mod compute_epoch_out_hash;

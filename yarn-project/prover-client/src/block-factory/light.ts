@@ -12,7 +12,7 @@ import { L2Block, L2BlockHeader } from '@aztec/stdlib/block';
 import type { IBlockFactory, MerkleTreeWriteOperations } from '@aztec/stdlib/interfaces/server';
 import { computeBlockOutHash, computeInHashFromL1ToL2Messages } from '@aztec/stdlib/messaging';
 import { MerkleTreeId } from '@aztec/stdlib/trees';
-import { ContentCommitment, type GlobalVariables, type ProcessedTx } from '@aztec/stdlib/tx';
+import type { GlobalVariables, ProcessedTx } from '@aztec/stdlib/tx';
 import { type TelemetryClient, getTelemetryClient } from '@aztec/telemetry-client';
 
 import {
@@ -98,10 +98,11 @@ export class LightweightBlockFactory implements IBlockFactory {
     const inHash = await computeInHashFromL1ToL2Messages(this.l1ToL2Messages!);
     const blobFields = [new Fr(totalNumBlobFields)].concat(blockBlobFields);
     const blobsHash = computeBlobsHashFromBlobs(getBlobsPerL1Block(blobFields));
-    const contentCommitment = new ContentCommitment(blobsHash, inHash, outHash);
     const l2BlockHeader = L2BlockHeader.from({
       ...header,
-      contentCommitment,
+      blobsHash,
+      inHash,
+      outHash,
     });
 
     const block = new L2Block(newArchive, l2BlockHeader, body);

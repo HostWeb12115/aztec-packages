@@ -9,7 +9,7 @@ import type { MerkleTreeWriteOperations } from '@aztec/stdlib/interfaces/server'
 import { computeCheckpointOutHash, computeInHashFromL1ToL2Messages } from '@aztec/stdlib/messaging';
 import { CheckpointConstantData, CheckpointHeader } from '@aztec/stdlib/rollup';
 import { AppendOnlyTreeSnapshot, MerkleTreeId } from '@aztec/stdlib/trees';
-import { ContentCommitment, type GlobalVariables, type ProcessedTx, StateReference } from '@aztec/stdlib/tx';
+import { type GlobalVariables, type ProcessedTx, StateReference } from '@aztec/stdlib/tx';
 import { type TelemetryClient, getTelemetryClient } from '@aztec/telemetry-client';
 
 import {
@@ -127,7 +127,9 @@ export class LightweightCheckpointBuilder {
 
     const header = CheckpointHeader.from({
       lastArchiveRoot: this.lastArchives[0].root,
-      contentCommitment: new ContentCommitment(blobsHash, inHash, outHash),
+      blobsHash,
+      inHash,
+      outHash,
       slotNumber: constants.slotNumber,
       timestamp,
       coinbase: constants.coinbase,

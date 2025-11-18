@@ -122,7 +122,10 @@ library EpochProofLib {
       rollupStore.tips =
         rollupStore.tips.updateProvenBlockNumber(Math.max(rollupStore.tips.getProvenBlockNumber(), _args.end));
 
-      // Handle L2->L1 message processing:
+      // Handle L2->L1 message processing.
+      // The circuit outputs a zero out hash if the epoch contains no messages. It is also impossible for a partial
+      // epoch to produce a non-zero out hash, then later produce a zero out hash once more checkpoints are included.
+      // Therefore, we can safely skip the insertion for a zero out hash here.
       if (_args.args.outHash != bytes32(0)) {
         // Insert L2->L1 messages root into outbox for consumption.
         rollupStore.config.outbox.insert(endEpoch, _args.args.outHash);
