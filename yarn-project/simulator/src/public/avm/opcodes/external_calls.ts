@@ -8,8 +8,8 @@ import { Instruction } from './instruction.js';
 abstract class ExternalCall extends Instruction {
   // Informs (de)serialization. See Instruction.deserialize.
   static readonly wireFormat: OperandType[] = [
-    OperandType.UINT8,
-    OperandType.UINT16, // Indirect
+    OperandType.OPCODE,
+    OperandType.ADDRMODE16, // 16-bit addressing mode (5 operands require more than 8 bits)
     OperandType.UINT16, // L2 gas offset
     OperandType.UINT16, // DA gas offset
     OperandType.UINT16, // Address offset
@@ -130,8 +130,8 @@ export class SuccessCopy extends Instruction {
   static readonly opcode: Opcode = Opcode.SUCCESSCOPY;
   // Informs (de)serialization. See Instruction.deserialize.
   static readonly wireFormat: OperandType[] = [
-    OperandType.UINT8,
-    OperandType.UINT8, // Indirect (8-bit)
+    OperandType.OPCODE,
+    OperandType.ADDRMODE8,
     OperandType.UINT16, // dstOffset (16-bit)
   ];
 
@@ -166,8 +166,8 @@ export class Return extends Instruction {
   static readonly opcode: Opcode = Opcode.RETURN;
   // Informs (de)serialization. See Instruction.deserialize.
   static readonly wireFormat: OperandType[] = [
-    OperandType.UINT8,
-    OperandType.UINT8,
+    OperandType.OPCODE,
+    OperandType.ADDRMODE8,
     OperandType.UINT16,
     OperandType.UINT16,
   ];
@@ -209,14 +209,14 @@ export class Revert extends Instruction {
   static readonly opcode: Opcode = Opcode.REVERT_8;
 
   static readonly wireFormat8: OperandType[] = [
-    OperandType.UINT8,
-    OperandType.UINT8,
+    OperandType.OPCODE,
+    OperandType.ADDRMODE8,
     OperandType.UINT8,
     OperandType.UINT8,
   ];
   static readonly wireFormat16: OperandType[] = [
-    OperandType.UINT8,
-    OperandType.UINT8,
+    OperandType.OPCODE,
+    OperandType.ADDRMODE8,
     OperandType.UINT16,
     OperandType.UINT16,
   ];
