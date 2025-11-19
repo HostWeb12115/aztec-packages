@@ -85,7 +85,7 @@ When triggered, the upload process:
 
 Use the admin API to trigger a snapshot upload. The upload destination must be a Google Cloud Storage URI (e.g., `gs://your-bucket/snapshots/`).
 
-**Example command** (assumes node admin API is running on `localhost:8880`):
+**Example command (CLI method)**:
 
 ```bash
 curl -XPOST http://localhost:8880 \
@@ -98,7 +98,20 @@ curl -XPOST http://localhost:8880 \
   }'
 ```
 
-Replace `gs://your-bucket/snapshots/` with your Google Cloud Storage bucket path.
+**Example command (Docker method)**:
+
+```bash
+docker exec -it aztec-node curl -XPOST http://localhost:8880 \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "method": "nodeAdmin_startSnapshotUpload",
+    "params": ["gs://your-bucket/snapshots/"],
+    "id": 1,
+    "jsonrpc": "2.0"
+  }'
+```
+
+Replace `gs://your-bucket/snapshots/` with your Google Cloud Storage bucket path and `aztec-node` with your container name.
 
 ### Scheduling regular snapshots
 

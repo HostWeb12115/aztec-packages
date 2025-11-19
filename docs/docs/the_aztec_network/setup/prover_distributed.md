@@ -100,7 +100,6 @@ services:
       AZTEC_ADMIN_PORT: ${AZTEC_ADMIN_PORT}
     ports:
       - ${AZTEC_PORT}:${AZTEC_PORT}
-      - ${AZTEC_ADMIN_PORT}:${AZTEC_ADMIN_PORT}
       - ${P2P_PORT}:${P2P_PORT}
       - ${P2P_PORT}:${P2P_PORT}/udp
     volumes:
@@ -127,6 +126,17 @@ services:
       - ${PROVER_BROKER_DATA_DIRECTORY}:/var/lib/data
     restart: unless-stopped
 ```
+
+:::warning Security: Admin Port Not Exposed
+The admin port (8880) is intentionally **not exposed** to the host machine for security reasons. The admin API provides sensitive operations like configuration changes and database rollbacks that should never be accessible from outside the container.
+
+If you need to access admin endpoints, use `docker exec`:
+```bash
+docker exec -it prover-node curl -X POST http://localhost:8880 \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","method":"nodeAdmin_getConfig","params":[],"id":1}'
+```
+:::
 
 **Important:** The broker exposes port 8080 via `ports: - ${PROVER_BROKER_PORT}:8080`, making it accessible to external prover agents. Ensure this port is reachable from your agent machines.
 
