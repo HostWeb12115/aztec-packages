@@ -30,10 +30,10 @@ Before proceeding, you should:
 
 ### Configuring sync mode
 
-Control how your node synchronizes using the `--sync-mode` flag:
+Control how your node synchronizes using the `SYNC_MODE` environment variable in your `.env` file:
 
 ```bash
-aztec start --node --sync-mode [MODE]
+SYNC_MODE=[MODE]
 ```
 
 Available sync modes:
@@ -44,10 +44,11 @@ Available sync modes:
 
 ### Setting the snapshot source
 
-By default, nodes use Aztec's official snapshot storage. To specify a custom snapshot location, use the `--snapshots-url` flag:
+By default, nodes use Aztec's official snapshot storage. To specify a custom snapshot location, add the `SNAPSHOTS_URL` environment variable to your `.env` file:
 
 ```bash
-aztec start --node --sync-mode snapshot --snapshots-url [BASE_URL]
+SYNC_MODE=snapshot
+SNAPSHOTS_URL=[BASE_URL]
 ```
 
 The node searches for the snapshot index at:
@@ -62,8 +63,20 @@ https://storage.googleapis.com/aztec-testnet/snapshots/
 
 ### Example: Force snapshot sync with custom URL
 
+Add the following to your `.env` file:
+
 ```bash
-aztec start --node --sync-mode force-snapshot --snapshots-url https://storage.googleapis.com/my-snapshots/
+SYNC_MODE=force-snapshot
+SNAPSHOTS_URL=https://storage.googleapis.com/my-snapshots/
+```
+
+Then add the environment variables to your `docker-compose.yml`:
+
+```yaml
+environment:
+  # ... other environment variables
+  SYNC_MODE: ${SYNC_MODE}
+  SNAPSHOTS_URL: ${SNAPSHOTS_URL}
 ```
 
 This configuration forces the node to download a fresh snapshot on every startup from the specified location.

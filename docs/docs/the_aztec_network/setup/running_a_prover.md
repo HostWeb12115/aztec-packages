@@ -12,11 +12,7 @@ This guide covers the steps required to run a prover on the Aztec network. Opera
 Aztec provers are critical infrastructure components. They generate cryptographic proofs attesting to transaction correctness, ultimately producing a single rollup proof submitted to Ethereum.
 
 :::tip Prerequisites
-Before proceeding, ensure you've reviewed and completed the [prerequisites](../prerequisites.md) for the Docker Compose method.
-:::
-
-:::info Deployment Method
-This guide uses the **Docker Compose method**. This is the recommended approach for prover nodes due to the complexity of managing distributed components.
+Before proceeding, ensure you've reviewed and completed the [prerequisites](../prerequisites.md).
 :::
 
 ## Prover Architecture
@@ -62,7 +58,7 @@ You can run multiple prover agents on a single machine by adjusting `PROVER_AGEN
 This scaling applies to both single-machine and distributed setups.
 :::
 
-**Before proceeding:** Ensure you've reviewed and completed the [prerequisites](../prerequisites.md) for the Docker Compose method. This guide uses Docker Compose, which is the recommended approach for prover nodes.
+**Before proceeding:** Ensure you've reviewed and completed the [prerequisites](../prerequisites.md).
 
 ## Generating Keys
 

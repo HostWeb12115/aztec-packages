@@ -11,7 +11,7 @@ This setup runs all prover components (prover node, broker, and agents) on a sin
 
 Before proceeding, ensure you have:
 
-- Completed the [prerequisites](../prerequisites.md) for the Docker Compose method
+- Completed the [prerequisites](../prerequisites.md)
 - Hardware that meets minimum requirements for all components combined (for multiple agents, multiply agent requirements by `PROVER_AGENT_COUNT`)
 - Generated an Ethereum private key for the prover publisher (see [Generating Keys](./running_a_prover.md#generating-keys) in the main guide)
 

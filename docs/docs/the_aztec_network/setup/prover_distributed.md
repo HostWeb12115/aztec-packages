@@ -27,7 +27,7 @@ Prover agents must communicate with the prover broker over the network. Ensure t
 
 Before proceeding, ensure you have:
 
-- Completed the [prerequisites](../prerequisites.md) for the Docker Compose method
+- Completed the [prerequisites](../prerequisites.md)
 - Multiple machines meeting hardware requirements for each component
 - Network connectivity between all machines with appropriate firewall rules configured
 - Generated an Ethereum private key for the prover publisher (see [Generating Keys](./running_a_prover.md#generating-keys) in the main guide)
