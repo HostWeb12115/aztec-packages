@@ -90,7 +90,7 @@ const validatorKeyStoreSchema = z.object({
   attester: attesterAccountsSchema,
   coinbase: optional(schemas.EthAddress),
   publisher: optional(ethAccountsSchema),
-  feeRecipient: AztecAddress.schema,
+  feeRecipient: optional(AztecAddress.schema),
   remoteSigner: optional(remoteSignerConfigSchema),
   fundingAccount: optional(ethAccountSchema),
 });
@@ -104,8 +104,26 @@ export const keystoreSchema = z
     remoteSigner: optional(remoteSignerConfigSchema),
     prover: optional(proverKeyStoreSchema),
     fundingAccount: optional(ethAccountSchema),
+    publisher: optional(ethAccountsSchema),
+    coinbase: optional(schemas.EthAddress),
+    feeRecipient: optional(AztecAddress.schema),
   })
   .refine(data => data.validators || data.prover, {
     message: 'Keystore must have at least validators or prover configuration',
     path: ['root'],
-  });
+  })
+  .refine(
+    data => {
+      // If validators are present, ensure each validator has a feeRecipient or there's a top-level feeRecipient
+      if (data.validators) {
+        const hasTopLevelFeeRecipient = !!data.feeRecipient;
+        const allValidatorsHaveFeeRecipient = data.validators.every(v => v.feeRecipient);
+        return hasTopLevelFeeRecipient || allValidatorsHaveFeeRecipient;
+      }
+      return true;
+    },
+    {
+      message: 'Each validator must have a feeRecipient, or a top-level feeRecipient must be set for all validators',
+      path: ['feeRecipient'],
+    },
+  );

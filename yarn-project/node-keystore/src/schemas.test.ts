@@ -29,7 +29,7 @@ describe('Keystore Schema Validation', () => {
     expect(parsed.validators).toHaveLength(1);
     expect(parsed.validators![0].attester).toBe('0x1234567890123456789012345678901234567890123456789012345678901234');
     expect(
-      parsed.validators![0].feeRecipient.equals(
+      parsed.validators![0].feeRecipient?.equals(
         AztecAddress.fromString('0x1234567890123456789012345678901234567890123456789012345678901234'),
       ),
     ).toBeTruthy();
@@ -142,5 +142,71 @@ describe('Keystore Schema Validation', () => {
     };
 
     expect(() => keystoreSchema.parse(keystore)).toThrow();
+  });
+
+  it('should validate validators with top-level defaults', () => {
+    const keystore = loadExample('validator-with-top-level-defaults.json');
+    expect(() => keystoreSchema.parse(keystore)).not.toThrow();
+
+    const parsed = keystoreSchema.parse(keystore);
+    expect(parsed.schemaVersion).toBe(1);
+    expect(parsed.validators).toHaveLength(3);
+    expect(parsed.publisher).toBe('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+    expect(parsed.coinbase?.equals(EthAddress.fromString('0x1111111111111111111111111111111111111111'))).toBeTruthy();
+    expect(
+      parsed.feeRecipient?.equals(
+        AztecAddress.fromString('0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'),
+      ),
+    ).toBeTruthy();
+
+    // First validator uses all defaults
+    expect(parsed.validators![0].attester).toBe('0x2222222222222222222222222222222222222222222222222222222222222222');
+    expect(parsed.validators![0].publisher).toBeUndefined();
+    expect(parsed.validators![0].coinbase).toBeUndefined();
+    expect(parsed.validators![0].feeRecipient).toBeUndefined();
+
+    // Second validator overrides publisher
+    expect(parsed.validators![1].publisher).toBe('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+
+    // Third validator overrides coinbase and feeRecipient
+    expect(
+      parsed.validators![2].coinbase?.equals(EthAddress.fromString('0x2222222222222222222222222222222222222222')),
+    ).toBeTruthy();
+    expect(
+      parsed.validators![2].feeRecipient?.equals(
+        AztecAddress.fromString('0xabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd'),
+      ),
+    ).toBeTruthy();
+  });
+
+  it('should reject validators without feeRecipient at any level', () => {
+    const keystore = {
+      schemaVersion: 1,
+      validators: [
+        {
+          attester: '0x1234567890123456789012345678901234567890123456789012345678901234',
+        },
+      ],
+    };
+
+    expect(() => keystoreSchema.parse(keystore)).toThrow(/feeRecipient/);
+  });
+
+  it('should accept validators with only some having feeRecipient if top-level is set', () => {
+    const keystore = {
+      schemaVersion: 1,
+      feeRecipient: '0x1234567890123456789012345678901234567890123456789012345678901234',
+      validators: [
+        {
+          attester: '0x1111111111111111111111111111111111111111111111111111111111111111',
+        },
+        {
+          attester: '0x2222222222222222222222222222222222222222222222222222222222222222',
+          feeRecipient: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+        },
+      ],
+    };
+
+    expect(() => keystoreSchema.parse(keystore)).not.toThrow();
   });
 });

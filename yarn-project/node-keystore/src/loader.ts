@@ -211,6 +211,9 @@ export function mergeKeystores(keystores: KeyStore[]): KeyStore {
     slasher: undefined,
     remoteSigner: undefined,
     prover: undefined,
+    publisher: undefined,
+    coinbase: undefined,
+    feeRecipient: undefined,
   };
 
   for (let i = 0; i < keystores.length; i++) {
@@ -263,6 +266,45 @@ export function mergeKeystores(keystores: KeyStore[]): KeyStore {
         );
       }
       merged.prover = keystore.prover;
+    }
+
+    // Merge top-level publisher (accumulate all, unless conflicting MnemonicConfigs)
+    if (keystore.publisher) {
+      if (!merged.publisher) {
+        merged.publisher = keystore.publisher;
+      } else {
+        const isMnemonic = (accounts: EthAccounts): boolean =>
+          typeof accounts === 'object' && accounts !== null && 'mnemonic' in accounts;
+
+        // If either is a mnemonic, warn and use last one (can't merge mnemonics)
+        if (isMnemonic(merged.publisher) || isMnemonic(keystore.publisher)) {
+          logger.warn(
+            'Multiple default publisher configurations found with mnemonic, using the last one (cannot merge mnemonics)',
+          );
+          merged.publisher = keystore.publisher;
+        } else {
+          // Both are non-mnemonic, accumulate them
+          const toArray = (accounts: EthAccounts): unknown[] => (Array.isArray(accounts) ? accounts : [accounts]);
+          const combined = [...toArray(merged.publisher), ...toArray(keystore.publisher)];
+          merged.publisher = combined as unknown as EthAccounts;
+        }
+      }
+    }
+
+    // Merge top-level coinbase (last one wins, but warn about conflicts)
+    if (keystore.coinbase) {
+      if (merged.coinbase) {
+        logger.warn('Multiple default coinbase addresses found, using the last one');
+      }
+      merged.coinbase = keystore.coinbase;
+    }
+
+    // Merge top-level feeRecipient (last one wins, but warn about conflicts)
+    if (keystore.feeRecipient) {
+      if (merged.feeRecipient) {
+        logger.warn('Multiple default feeRecipient addresses found, using the last one');
+      }
+      merged.feeRecipient = keystore.feeRecipient;
     }
   }
 
