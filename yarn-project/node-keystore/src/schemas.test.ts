@@ -13,9 +13,9 @@ import { keystoreSchema } from '../src/schemas.js';
 import type { MnemonicConfig, ProverKeyStoreWithId } from './types.js';
 
 // Helper to load example JSON files
-const loadExample = (filename: string) => {
+const loadExample = (filename: string, version: 'v1' | 'v2' = 'v1') => {
   const currentDir = dirname(fileURLToPath(import.meta.url));
-  const examplePath = join(currentDir, '..', 'examples', filename);
+  const examplePath = join(currentDir, '..', 'examples', version, filename);
   return JSON.parse(readFileSync(examplePath, 'utf-8'));
 };
 
@@ -124,7 +124,7 @@ describe('Keystore Schema Validation', () => {
 
   it('should reject keystore with invalid schema version', () => {
     const keystore = {
-      schemaVersion: 2, // Invalid
+      schemaVersion: 3, // Invalid
       validators: [
         {
           attester: '0x1234567890123456789012345678901234567890123456789012345678901234',
@@ -133,6 +133,38 @@ describe('Keystore Schema Validation', () => {
       ],
     };
 
+    expect(() => keystoreSchema.parse(keystore)).toThrow();
+  });
+
+  it('should accept v1 keystore with feeRecipient at validator level', () => {
+    const keystore = {
+      schemaVersion: 1,
+      validators: [
+        {
+          attester: '0x1234567890123456789012345678901234567890123456789012345678901234',
+          feeRecipient: '0x1234567890123456789012345678901234567890123456789012345678901234',
+        },
+      ],
+    };
+
+    expect(() => keystoreSchema.parse(keystore)).not.toThrow();
+    const parsed = keystoreSchema.parse(keystore);
+    expect([1, 2]).toContain(parsed.schemaVersion);
+  });
+
+  it('should reject v1 keystore with top-level feeRecipient', () => {
+    const keystore = {
+      schemaVersion: 1,
+      feeRecipient: '0x1234567890123456789012345678901234567890123456789012345678901234',
+      publisher: '0x1234567890123456789012345678901234567890123456789012345678901234',
+      validators: [
+        {
+          attester: '0x1234567890123456789012345678901234567890123456789012345678901234',
+        },
+      ],
+    };
+
+    // v1 schema doesn't allow top-level publisher/feeRecipient/coinbase
     expect(() => keystoreSchema.parse(keystore)).toThrow();
   });
 
@@ -145,19 +177,23 @@ describe('Keystore Schema Validation', () => {
   });
 
   it('should validate validators with top-level defaults', () => {
-    const keystore = loadExample('validator-with-top-level-defaults.json');
+    const keystore = loadExample('validator-with-top-level-defaults.json', 'v2');
     expect(() => keystoreSchema.parse(keystore)).not.toThrow();
 
     const parsed = keystoreSchema.parse(keystore);
-    expect(parsed.schemaVersion).toBe(1);
+    expect(parsed.schemaVersion).toBe(2);
     expect(parsed.validators).toHaveLength(3);
-    expect(parsed.publisher).toBe('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
-    expect(parsed.coinbase?.equals(EthAddress.fromString('0x1111111111111111111111111111111111111111'))).toBeTruthy();
-    expect(
-      parsed.feeRecipient?.equals(
-        AztecAddress.fromString('0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'),
-      ),
-    ).toBeTruthy();
+
+    // Type guard: if schemaVersion is 2, these fields exist
+    if (parsed.schemaVersion === 2) {
+      expect(parsed.publisher).toBe('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+      expect(parsed.coinbase?.equals(EthAddress.fromString('0x1111111111111111111111111111111111111111'))).toBeTruthy();
+      expect(
+        parsed.feeRecipient?.equals(
+          AztecAddress.fromString('0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'),
+        ),
+      ).toBeTruthy();
+    }
 
     // First validator uses all defaults
     expect(parsed.validators![0].attester).toBe('0x2222222222222222222222222222222222222222222222222222222222222222');
@@ -179,7 +215,7 @@ describe('Keystore Schema Validation', () => {
     ).toBeTruthy();
   });
 
-  it('should reject validators without feeRecipient at any level', () => {
+  it('should reject v1 validators without feeRecipient', () => {
     const keystore = {
       schemaVersion: 1,
       validators: [
@@ -189,12 +225,27 @@ describe('Keystore Schema Validation', () => {
       ],
     };
 
+    // v1 requires feeRecipient at validator level
     expect(() => keystoreSchema.parse(keystore)).toThrow(/feeRecipient/);
   });
 
-  it('should accept validators with only some having feeRecipient if top-level is set', () => {
+  it('should reject v2 validators without feeRecipient at any level', () => {
     const keystore = {
-      schemaVersion: 1,
+      schemaVersion: 2,
+      validators: [
+        {
+          attester: '0x1234567890123456789012345678901234567890123456789012345678901234',
+        },
+      ],
+    };
+
+    // v2 requires feeRecipient at either validator or top level
+    expect(() => keystoreSchema.parse(keystore)).toThrow(/feeRecipient/);
+  });
+
+  it('should accept v2 validators with only some having feeRecipient if top-level is set', () => {
+    const keystore = {
+      schemaVersion: 2,
       feeRecipient: '0x1234567890123456789012345678901234567890123456789012345678901234',
       validators: [
         {
@@ -208,5 +259,86 @@ describe('Keystore Schema Validation', () => {
     };
 
     expect(() => keystoreSchema.parse(keystore)).not.toThrow();
+  });
+
+  describe('Strict schema validation', () => {
+    it('should reject v2 structure claiming to be schemaVersion 1', () => {
+      // This has v2-only fields (top-level publisher) but claims to be v1
+      const keystore = {
+        schemaVersion: 1,
+        publisher: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        validators: [
+          {
+            attester: '0x1234567890123456789012345678901234567890123456789012345678901234',
+            feeRecipient: '0x1234567890123456789012345678901234567890123456789012345678901234',
+          },
+        ],
+      };
+
+      // v1 schema is strict and doesn't allow publisher field
+      expect(() => keystoreSchema.parse(keystore)).toThrow(/publisher/);
+    });
+
+    it('should reject v1 keystore with top-level coinbase field', () => {
+      const keystore = {
+        schemaVersion: 1,
+        coinbase: '0x1111111111111111111111111111111111111111',
+        validators: [
+          {
+            attester: '0x1234567890123456789012345678901234567890123456789012345678901234',
+            feeRecipient: '0x1234567890123456789012345678901234567890123456789012345678901234',
+          },
+        ],
+      };
+
+      expect(() => keystoreSchema.parse(keystore)).toThrow(/coinbase/);
+    });
+
+    it('should reject v1 keystore with top-level feeRecipient field', () => {
+      const keystore = {
+        schemaVersion: 1,
+        feeRecipient: '0x1234567890123456789012345678901234567890123456789012345678901234',
+        validators: [
+          {
+            attester: '0x1111111111111111111111111111111111111111111111111111111111111111',
+            feeRecipient: '0x2222222222222222222222222222222222222222222222222222222222222222',
+          },
+        ],
+      };
+
+      expect(() => keystoreSchema.parse(keystore)).toThrow(/feeRecipient/);
+    });
+
+    it('should reject v1 keystores with unknown fields', () => {
+      const keystore = {
+        schemaVersion: 1,
+        unknownField: 'some value',
+        validators: [
+          {
+            attester: '0x1234567890123456789012345678901234567890123456789012345678901234',
+            feeRecipient: '0x1234567890123456789012345678901234567890123456789012345678901234',
+          },
+        ],
+      };
+
+      // Strict mode should reject unknown fields
+      expect(() => keystoreSchema.parse(keystore)).toThrow(/unknownField/);
+    });
+
+    it('should reject v2 keystores with unknown fields', () => {
+      const keystore = {
+        schemaVersion: 2,
+        unknownField: 'some value',
+        feeRecipient: '0x1234567890123456789012345678901234567890123456789012345678901234',
+        validators: [
+          {
+            attester: '0x1234567890123456789012345678901234567890123456789012345678901234',
+          },
+        ],
+      };
+
+      // Strict mode should reject unknown fields
+      expect(() => keystoreSchema.parse(keystore)).toThrow(/unknownField/);
+    });
   });
 });

@@ -161,7 +161,7 @@ describe('Keystore Duplication Validation', () => {
     const attester2 = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 
     const keystore1: KeyStore = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       publisher: pub1 as any,
       feeRecipient: feeRecipient as any,
       validators: [
@@ -172,7 +172,7 @@ describe('Keystore Duplication Validation', () => {
     };
 
     const keystore2: KeyStore = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       publisher: [pub2, pub3] as any,
       feeRecipient: feeRecipient as any,
       validators: [
@@ -191,10 +191,162 @@ describe('Keystore Duplication Validation', () => {
     expect(publishers).toEqual([pub1, pub2, pub3]);
   });
 
+  it('should upgrade to v2 when merging v1 and v2 keystores', () => {
+    const v1Keystore: KeyStore = {
+      schemaVersion: 1,
+      validators: [
+        {
+          attester: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as any,
+          feeRecipient: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as any,
+        },
+      ],
+    };
+
+    const v2Keystore: KeyStore = {
+      schemaVersion: 2,
+      feeRecipient: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as any,
+      publisher: '0x1111111111111111111111111111111111111111111111111111111111111111' as any,
+      validators: [
+        {
+          attester: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as any,
+        },
+      ],
+    };
+
+    const merged = mergeKeystores([v1Keystore, v2Keystore]);
+
+    // Should use v2 when any input is v2
+    expect(merged.schemaVersion).toBe(2);
+    expect(merged.validators).toHaveLength(2);
+    expect(merged.publisher).toBe('0x1111111111111111111111111111111111111111111111111111111111111111');
+  });
+
+  it('should preserve v1 validator publisher behavior when merging into v2', () => {
+    const attester1 = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    const attester2 = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+    const topLevelPublisher = '0x1111111111111111111111111111111111111111111111111111111111111111';
+
+    const v1Keystore: KeyStore = {
+      schemaVersion: 1,
+      validators: [
+        {
+          attester: attester1 as any,
+          feeRecipient: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as any,
+          // No publisher specified - would fall back to attester in v1
+        },
+      ],
+    };
+
+    const v2Keystore: KeyStore = {
+      schemaVersion: 2,
+      feeRecipient: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as any,
+      publisher: topLevelPublisher as any,
+      validators: [
+        {
+          attester: attester2 as any,
+          // No publisher specified - will use top-level publisher
+        },
+      ],
+    };
+
+    const merged = mergeKeystores([v1Keystore, v2Keystore]);
+
+    expect(merged.schemaVersion).toBe(2);
+    expect(merged.validators).toHaveLength(2);
+    expect(merged.publisher).toBe(topLevelPublisher);
+
+    // The v1 validator should have its publisher explicitly set to preserve original behavior
+    expect(merged.validators![0].publisher).toBe(attester1);
+    expect(merged.validators![0].attester).toBe(attester1);
+
+    // The v2 validator should not have publisher set (will use top-level)
+    expect(merged.validators![1].publisher).toBeUndefined();
+    expect(merged.validators![1].attester).toBe(attester2);
+  });
+
+  it('should preserve v1 validator publisher when it already has one explicitly set', () => {
+    const attester1 = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    const explicitPublisher = '0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc';
+    const topLevelPublisher = '0x1111111111111111111111111111111111111111111111111111111111111111';
+
+    const v1Keystore: KeyStore = {
+      schemaVersion: 1,
+      validators: [
+        {
+          attester: attester1 as any,
+          publisher: explicitPublisher as any,
+          feeRecipient: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as any,
+        },
+      ],
+    };
+
+    const v2Keystore: KeyStore = {
+      schemaVersion: 2,
+      feeRecipient: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as any,
+      publisher: topLevelPublisher as any,
+      validators: [
+        {
+          attester: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as any,
+        },
+      ],
+    };
+
+    const merged = mergeKeystores([v1Keystore, v2Keystore]);
+
+    expect(merged.schemaVersion).toBe(2);
+
+    // The v1 validator should keep its explicit publisher
+    expect(merged.validators![0].publisher).toBe(explicitPublisher);
+    expect(merged.validators![0].attester).toBe(attester1);
+  });
+
+  it('should preserve v1 validator publisher with {eth, bls} attester format', () => {
+    const ethKey = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    const blsKey = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+    const topLevelPublisher = '0x1111111111111111111111111111111111111111111111111111111111111111';
+
+    const v1Keystore: KeyStore = {
+      schemaVersion: 1,
+      validators: [
+        {
+          attester: {
+            eth: ethKey,
+            bls: blsKey,
+          } as any,
+          feeRecipient: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as any,
+          // No publisher - would fall back to eth key
+        },
+      ],
+    };
+
+    const v2Keystore: KeyStore = {
+      schemaVersion: 2,
+      feeRecipient: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as any,
+      publisher: topLevelPublisher as any,
+      validators: [
+        {
+          attester: '0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' as any,
+        },
+      ],
+    };
+
+    const merged = mergeKeystores([v1Keystore, v2Keystore]);
+
+    expect(merged.schemaVersion).toBe(2);
+
+    // The v1 validator should have its publisher explicitly set to the eth key
+    expect(merged.validators![0].publisher).toBe(ethKey);
+
+    // The attester should still have the {eth, bls} format
+    const attester = merged.validators![0].attester as any;
+    expect(attester.eth).toBe(ethKey);
+    expect(attester.bls).toBe(blsKey);
+  });
+
   it('should use last-one-wins for top-level publisher when mnemonics are involved', () => {
     const publisherKey = '0x2222222222222222222222222222222222222222222222222222222222222222';
     const keystore1: KeyStore = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       publisher: {
         mnemonic: 'test test test test test test test test test test test junk',
         addressCount: 2,
@@ -208,7 +360,7 @@ describe('Keystore Duplication Validation', () => {
     };
 
     const keystore2: KeyStore = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       publisher: publisherKey as any,
       feeRecipient: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as any,
       validators: [
@@ -265,7 +417,7 @@ describe('Keystore Duplication Validation', () => {
     const __dirname = dirname(__filename);
     const examplesDir = join(__dirname, '../examples');
 
-    const configExampleFiles = [
+    const v1ExampleFiles = [
       'simple-validator.json',
       'multiple-validators-remote.json',
       'simple-prover.json',
@@ -274,15 +426,25 @@ describe('Keystore Duplication Validation', () => {
       'validator-null.json',
       'prover-with-publishers-and-funding-account.json',
       'everything.json',
-      'validator-with-top-level-defaults.json',
     ];
 
-    for (const file of configExampleFiles) {
-      it(`should load and validate ${file}`, () => {
-        const path = join(examplesDir, file);
+    const v2ExampleFiles = ['validator-with-top-level-defaults.json'];
+
+    for (const file of v1ExampleFiles) {
+      it(`should load and validate v1/${file}`, () => {
+        const path = join(examplesDir, 'v1', file);
         expect(() => loadKeystoreFile(path)).not.toThrow();
         const ks = loadKeystoreFile(path);
         expect(ks.schemaVersion).toBe(1);
+      });
+    }
+
+    for (const file of v2ExampleFiles) {
+      it(`should load and validate v2/${file}`, () => {
+        const path = join(examplesDir, 'v2', file);
+        expect(() => loadKeystoreFile(path)).not.toThrow();
+        const ks = loadKeystoreFile(path);
+        expect(ks.schemaVersion).toBe(2);
       });
     }
   });
@@ -291,7 +453,7 @@ describe('Keystore Duplication Validation', () => {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
     const examplesDir = join(__dirname, '../examples');
-    const path = join(examplesDir, 'everything.json');
+    const path = join(examplesDir, 'v1', 'everything.json');
 
     const ks = loadKeystoreFile(path);
 

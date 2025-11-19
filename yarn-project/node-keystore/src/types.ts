@@ -115,8 +115,8 @@ export type ValidatorKeyStore = {
 };
 
 export type KeyStore = {
-  /** Schema version of this keystore file (initially 1). */
-  schemaVersion: number;
+  /** Schema version of this keystore file (1 or 2). */
+  schemaVersion: 1 | 2;
   /** Validator configurations. */
   validators?: ValidatorKeyStore[];
   /** One or more accounts used for creating slash payloads on L1. Does not create slash payloads if not set. */

@@ -205,8 +205,11 @@ export function mergeKeystores(keystores: KeyStore[]): KeyStore {
   // Track attester addresses to prevent duplicates
   const attesterAddresses = new Set<string>();
 
+  // Determine schema version: use v2 if any input is v2
+  const schemaVersion = keystores.some(ks => ks.schemaVersion === 2) ? 2 : 1;
+
   const merged: KeyStore = {
-    schemaVersion: 1,
+    schemaVersion,
     validators: [],
     slasher: undefined,
     remoteSigner: undefined,
@@ -233,8 +236,31 @@ export function mergeKeystores(keystores: KeyStore[]): KeyStore {
           }
           attesterAddresses.add(key);
         }
+
+        // When merging v1 validators into a v2+ result, preserve original fallback behavior
+        // by explicitly setting publisher/coinbase/feeRecipient if they're missing
+        if (keystore.schemaVersion === 1 && schemaVersion === 2) {
+          const preservedValidator = { ...validator };
+
+          // Preserve publisher fallback: if no publisher, it would fall back to attester
+          // Set it explicitly to preserve this behavior in v2
+          if (!validator.publisher) {
+            // Extract ETH account from attester
+            const attester = validator.attester;
+            if (typeof attester === 'object' && attester !== null && 'eth' in attester) {
+              // AttesterAccount with separate eth/bls keys
+              preservedValidator.publisher = (attester as any).eth;
+            } else {
+              // Direct EthAccount or array of EthAccounts
+              preservedValidator.publisher = attester as any;
+            }
+          }
+
+          merged.validators!.push(preservedValidator);
+        } else {
+          merged.validators!.push(validator);
+        }
       }
-      merged.validators!.push(...keystore.validators);
     }
 
     // Merge slasher (accumulate all)
