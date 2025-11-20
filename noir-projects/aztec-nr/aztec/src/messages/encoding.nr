@@ -6,6 +6,8 @@ use protocol_types::constants::PRIVATE_LOG_CIPHERTEXT_LEN;
 // protocol circuits, we have a concept of a message that can be emitted either as a private log or as an offchain
 // message. Message is a piece of data that is to be eventually delivered to a contract via the `process_message(...)`
 // utility function function that is injected by the #[aztec] macro.
+// Note: PRIVATE_LOG_CIPHERTEXT_LEN is an amount of fields,
+// so MESSAGE_CIPHERTEXT_LEN is the size of the message in fields.
 pub global MESSAGE_CIPHERTEXT_LEN: u32 = PRIVATE_LOG_CIPHERTEXT_LEN;
 
 // TODO(#12750): The global variables below should not be here as they are AES128 specific.
