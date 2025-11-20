@@ -165,6 +165,9 @@ export interface P2PConfig extends P2PReqRespConfig, ChainConfig, TxCollectionCo
   /** Whether to delete transactions from the pool after a reorg instead of moving them back to pending. */
   txPoolDeleteTxsAfterReorg: boolean;
 
+  /** Alters the format of p2p messages to include things like broadcast timestamp FOR TESTING ONLY */
+  debugP2PInstrumentMessages: boolean;
+
   /** Whether to run in fisherman mode: validates all proposals and attestations but does not broadcast attestations or participate in consensus */
   fishermanMode: boolean;
 }
@@ -421,6 +424,11 @@ export const p2pConfigMappings: ConfigMappingsType<P2PConfig> = {
   txPoolDeleteTxsAfterReorg: {
     env: 'P2P_TX_POOL_DELETE_TXS_AFTER_REORG',
     description: 'Whether to delete transactions from the pool after a reorg instead of moving them back to pending.',
+    ...booleanConfigHelper(false),
+  },
+  debugP2PInstrumentMessages: {
+    env: 'DEBUG_P2P_INSTRUMENT_MESSAGES',
+    description: 'Alters the format of p2p messages to include things like broadcast timestamp FOR TESTING ONLY',
     ...booleanConfigHelper(false),
   },
   fishermanMode: {

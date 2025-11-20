@@ -1,8 +1,11 @@
 import { SponsoredFeePaymentMethod } from '@aztec/aztec.js/fee';
 import type { AztecNode } from '@aztec/aztec.js/node';
-import { readFieldCompressedString } from '@aztec/aztec.js/utils';
+import { Fr } from '@aztec/foundation/fields';
 import { createLogger } from '@aztec/foundation/log';
+import { SerialQueue } from '@aztec/foundation/queue';
 import { sleep } from '@aztec/foundation/sleep';
+import { BenchmarkingContract } from '@aztec/noir-test-contracts.js/Benchmarking';
+import { Tx } from '@aztec/stdlib/tx';
 import { ProvenTx, TestWallet, proveInteraction } from '@aztec/test-wallet/server';
 
 import { jest } from '@jest/globals';
@@ -10,7 +13,7 @@ import type { ChildProcess } from 'child_process';
 
 import { getSponsoredFPCAddress } from '../fixtures/utils.js';
 import {
-  type TestAccounts,
+  type TestAccountsWithoutTokens,
   createWalletAndAztecNodeClient,
   deploySponsoredTestAccounts,
 } from './setup_test_wallets.js';
@@ -18,95 +21,149 @@ import { setupEnvironment, startPortForwardForRPC } from './utils.js';
 
 const config = { ...setupEnvironment(process.env) };
 
+type BenchmarkWallet = {
+  testAccounts: TestAccountsWithoutTokens;
+  cleanup: undefined | (() => Promise<void>);
+};
+
 // TODO: parallelize tx creation
 describe('sustained 10 TPS test', () => {
   jest.setTimeout(60 * 60 * 1000); // 1 hour
 
   const logger = createLogger(`e2e:spartan-test:sustained-10tps`);
-  const MINT_AMOUNT = 10000n;
-  const TEST_DURATION_SECONDS = 5;
-  const TARGET_TPS = 10;
+  const TEST_DURATION_SECONDS = 20 * 60;
+  const TARGET_TPS = 2;
   const TOTAL_TXS = TEST_DURATION_SECONDS * TARGET_TPS;
+  const NUM_WALLETS = 1;
 
-  let testAccounts: TestAccounts;
-  let wallet: TestWallet;
+  const testAccounts: BenchmarkWallet[] = [];
   let aztecNode: AztecNode;
+  let benchmarkContract: BenchmarkingContract;
 
-  let cleanup: undefined | (() => Promise<void>);
   const forwardProcesses: ChildProcess[] = [];
 
   afterAll(async () => {
-    await cleanup?.();
+    for (const account of testAccounts) {
+      if (!account.cleanup) {
+        continue;
+      }
+      await account?.cleanup();
+    }
     forwardProcesses.forEach(p => p.kill());
   });
 
   beforeAll(async () => {
-    logger.info('Starting port forward for PXE');
-    const { process: aztecRpcProcess, port: aztecRpcPort } = await startPortForwardForRPC(config.NAMESPACE);
-    forwardProcesses.push(aztecRpcProcess);
-    const rpcUrl = `http://127.0.0.1:${aztecRpcPort}`;
+    const localWallets: TestWallet[] = [];
+    const cleanupFunctions = [];
+    for (let i = 0; i < NUM_WALLETS; i++) {
+      logger.info(`Starting port forward for PXE for wallet ${i + 1}/${NUM_WALLETS}`);
+      const { process: aztecRpcProcess, port: aztecRpcPort } = await startPortForwardForRPC(config.NAMESPACE);
+      forwardProcesses.push(aztecRpcProcess);
+      const rpcUrl = `http://127.0.0.1:${aztecRpcPort}`;
 
-    ({ wallet, aztecNode, cleanup } = await createWalletAndAztecNodeClient(rpcUrl, config.REAL_VERIFIER, logger));
+      logger.info(`Creating wallet and pxe for wallet ${i + 1}/${NUM_WALLETS}`);
+      let wallet: TestWallet;
+      let cleanup: () => Promise<void>;
+      ({ wallet, aztecNode, cleanup } = await createWalletAndAztecNodeClient(rpcUrl, config.REAL_VERIFIER, logger));
+      localWallets.push(wallet);
+      cleanupFunctions.push(cleanup);
+    }
 
-    // Setup wallets
-    logger.info('deploying test wallets');
-    testAccounts = await deploySponsoredTestAccounts(wallet, aztecNode, MINT_AMOUNT, logger);
-    logger.info(`testAccounts ready`);
+    const localTestAccounts = await Promise.all(
+      localWallets.map(lw => deploySponsoredTestAccounts(lw, aztecNode, logger)),
+    );
+
+    for (let i = 0; i < NUM_WALLETS; i++) {
+      testAccounts.push({
+        testAccounts: localTestAccounts[i],
+        cleanup: cleanupFunctions[i],
+      });
+    }
+
+    logger.info('Deploying Benchmarking contract');
+
+    const sponsor = new SponsoredFeePaymentMethod(await getSponsoredFPCAddress());
+    benchmarkContract = await BenchmarkingContract.deploy(testAccounts[0].testAccounts.wallet)
+      .send({ from: testAccounts[0].testAccounts.accounts[0], fee: { paymentMethod: sponsor } })
+      .deployed();
 
     logger.info(
       `Test setup complete. Planning ${TOTAL_TXS} transactions over ${TEST_DURATION_SECONDS} seconds at ${TARGET_TPS} TPS`,
     );
   });
 
-  // it('can verify token setup', async () => {
-  //   const name = readFieldCompressedString(await tokenContract.methods.private_get_name().simulate());
-  //   expect(name).toBeDefined();
-  //   expect(name.length).toBeGreaterThan(0);
-  //   logger.info(`Token verified: ${name}`);
-  // });
-
-  it('can get info', async () => {
-    const name = readFieldCompressedString(
-      await testAccounts.tokenContract.methods.private_get_name().simulate({ from: testAccounts.tokenAdminAddress }),
-    );
-    expect(name).toBe(testAccounts.tokenName);
-  });
-
-  it('can transfer 10tps tokens', async () => {
-    const recipient = testAccounts.recipientAddress;
-    const transferAmount = 1n;
-
-    for (const acc of testAccounts.accounts) {
-      expect(MINT_AMOUNT).toBe(
-        await testAccounts.tokenContract.methods
-          .balance_of_public(acc)
-          .simulate({ from: testAccounts.tokenAdminAddress }),
-      );
-    }
-
-    expect(0n).toBe(
-      await testAccounts.tokenContract.methods
-        .balance_of_public(recipient)
-        .simulate({ from: testAccounts.tokenAdminAddress }),
-    );
-
-    const defaultAccountAddress = testAccounts.accounts[0];
-
-    // Pre-prove all transactions (avoid cloning/mutating nullifiers)
+  it('can send 10tps', async () => {
     const sponsor = new SponsoredFeePaymentMethod(await getSponsoredFPCAddress());
     const TOTAL_TXS = TEST_DURATION_SECONDS * TARGET_TPS;
-    const txs: ProvenTx[] = await Promise.all(
-      Array.from({ length: TOTAL_TXS }, () =>
-        proveInteraction(
-          wallet,
-          testAccounts.tokenContract.methods.transfer_in_public(defaultAccountAddress, recipient, transferAmount, 0),
-          {
-            from: testAccounts.tokenAdminAddress,
+    const txs: ProvenTx[] = [];
+
+    logger.info(`Proving benchmark transaction...`);
+
+    const workers: SerialQueue[] = Array(NUM_WALLETS)
+      .fill(0)
+      .map(() => new SerialQueue());
+
+    workers.forEach(worker => {
+      worker.start();
+    });
+
+    const txPromises = [];
+
+    if (config.REAL_VERIFIER === true) {
+      for (let i = 0; i < TOTAL_TXS; i++) {
+        const workerIndex = i % NUM_WALLETS;
+        const worker = workers[workerIndex];
+        const from = testAccounts[workerIndex].testAccounts.accounts[0];
+        const wallet = testAccounts[workerIndex].testAccounts.wallet;
+
+        const txPromise = worker.put(async () => {
+          const tx = await proveInteraction(wallet, benchmarkContract.methods.sha256_hash_1024(Array(1024).fill(42)), {
+            from,
             fee: { paymentMethod: sponsor },
-          },
-        ),
-      ),
-    );
+          });
+          return tx;
+        });
+        txPromises.push(txPromise);
+      }
+      const provedTxs = await Promise.all(txPromises);
+      txs.push(...provedTxs);
+    } else {
+      const wallet = testAccounts[0].testAccounts.wallet;
+      const from = testAccounts[0].testAccounts.accounts[0];
+      const baseTx = await proveInteraction(wallet, benchmarkContract.methods.create_note(from, 10), {
+        from,
+        fee: { paymentMethod: sponsor },
+      });
+
+      for (let i = 0; i < TOTAL_TXS; i++) {
+        const clonedTxData = Tx.clone(baseTx);
+
+        if (clonedTxData.data.forRollup) {
+          for (let i = 0; i < clonedTxData.data.forRollup?.end.nullifiers.length; i++) {
+            if (clonedTxData.data.forRollup?.end.nullifiers[i].isZero()) {
+              continue;
+            }
+            clonedTxData.data.forRollup.end.nullifiers[i] = Fr.random();
+          }
+        } else if (clonedTxData.data.forPublic) {
+          for (let i = 0; i < clonedTxData.data.forPublic.nonRevertibleAccumulatedData.nullifiers.length; i++) {
+            if (clonedTxData.data.forPublic?.nonRevertibleAccumulatedData.nullifiers[i].isZero()) {
+              continue;
+            }
+            clonedTxData.data.forPublic.nonRevertibleAccumulatedData.nullifiers[i] = Fr.random();
+          }
+        }
+
+        const clonedTx = new ProvenTx(aztecNode, clonedTxData, baseTx.offchainEffects, baseTx.stats);
+        txs.push(clonedTx);
+      }
+      // The tx hashes will need to be recomputed due to the nullifier changes
+      await Promise.all(txs.map(tx => tx.recomputeHash()));
+    }
+
+    await Promise.all(workers.map(worker => worker.end()));
+
+    logger.info(`Benchmark transaction proved.`);
 
     const allSentTxs: any[] = [];
     let sentSoFar = 0;
@@ -133,7 +190,7 @@ describe('sustained 10 TPS test', () => {
       (async () => {
         try {
           await sentTx.wait({
-            timeout: 120,
+            timeout: 1200,
             interval: 1,
             ignoreDroppedReceiptsFor: 2,
           });
@@ -166,10 +223,5 @@ describe('sustained 10 TPS test', () => {
     logger.info(
       `Transaction inclusion summary: ${successCount} succeeded, ${failureCount} failed out of ${TOTAL_TXS} total`,
     );
-
-    const recipientBalance = await testAccounts.tokenContract.methods
-      .balance_of_public(recipient)
-      .simulate({ from: testAccounts.tokenAdminAddress });
-    logger.info(`recipientBalance after load test: ${recipientBalance}`);
   });
 });

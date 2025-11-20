@@ -288,7 +288,9 @@ export class AztecNodeService implements AztecNode, AztecNodeAdmin, Traceable {
       options.prefilledPublicData,
       telemetry,
     );
-    const circuitVerifier = config.realProofs ? await BBCircuitVerifier.new(config) : new TestCircuitVerifier();
+    const circuitVerifier = config.realProofs
+      ? await BBCircuitVerifier.new(config)
+      : new TestCircuitVerifier(config.proverTestVerificationDelayMs);
     if (!config.realProofs) {
       log.warn(`Aztec node is accepting fake proofs`);
     }
