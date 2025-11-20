@@ -145,6 +145,7 @@ void build_constraints(Builder& builder, AcirProgram& program, const ProgramMeta
         const auto& constraint = constraint_system.logic_constraints.at(i);
         create_logic_gate(
             builder, constraint.a, constraint.b, constraint.result, constraint.num_bits, constraint.is_xor_gate);
+        builder.save_and_clear_logic_witnesses();
         gate_counter.track_diff(constraint_system.gates_per_opcode,
                                 constraint_system.original_opcode_indices.logic_constraints.at(i));
     }
