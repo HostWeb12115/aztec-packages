@@ -148,7 +148,19 @@ export class CppPublicTxSimulator extends PublicTxSimulator implements PublicTxS
     assert(cppResult.gasUsed.billedGas.equals(tsResult.gasUsed.billedGas));
     assert(cppResult.publicInputs.toBuffer().equals(tsResult.publicInputs.toBuffer()));
     // FIXME(https://github.com/AztecProtocol/aztec-packages/issues/18441): a few but not all keccaks fail!
-    // expect(cppResult.appLogicReturnValues).toEqual(tsResult.appLogicReturnValues);
+    // assert(cppResult.getAppLogicReturnValues().length === tsResult.getAppLogicReturnValues().length);
+    // for (let i = 0; i < cppResult.getAppLogicReturnValues().length; i++) {
+    //   assert(cppResult.getAppLogicReturnValues()[i].equals(tsResult.getAppLogicReturnValues()[i]));
+    // }
+    // Messages are still not ok for exceptional halts (they are not plumbed in C++).
+    const cppRevertReasonAsObject = JSON.parse(JSON.stringify(cppResult.findRevertReason()));
+    const tsRevertReasonAsObject = JSON.parse(JSON.stringify(tsResult.findRevertReason()));
+    if (JSON.stringify(cppRevertReasonAsObject) !== JSON.stringify(tsRevertReasonAsObject)) {
+      console.log('cppResult.findRevertReason()', JSON.stringify(cppRevertReasonAsObject, null, 2));
+      console.log('tsResult.findRevertReason()', JSON.stringify(tsRevertReasonAsObject, null, 2));
+    }
+    // TODO: dont compare the strings since this is not deterministic.
+    assert(JSON.stringify(cppRevertReasonAsObject) === JSON.stringify(tsRevertReasonAsObject));
 
     // Confirm that tree roots match
     const cppStateRef = await this.merkleTree.getStateReference();

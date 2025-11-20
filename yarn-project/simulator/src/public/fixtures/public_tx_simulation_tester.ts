@@ -61,6 +61,7 @@ export class PublicTxSimulationTester extends BaseAvmSimulationTester {
       collectDebugLogs: true,
       collectHints: false,
       collectStatistics: false,
+      collectCallMetadata: true,
     });
     this.simulator = useCppSimulator
       ? new MeasuredCppPublicTxSimulator(merkleTree, contractsDB, globals, this.metrics, config)
