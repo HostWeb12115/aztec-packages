@@ -21,13 +21,13 @@ pub struct UintNote {
 }
 ```
 
-When creating the note locally, while in private execution, the `owner` is known, but the `value` potentially is not, e.g., it is some on-chain dynamic variable. First, a **partial note** can be created during private execution that contains the `owner` and `randomness`, and then the note is *”completed”* to create a full note by later adding the `value` field, usually during public execution.
+When creating the note locally, while in private execution, the `owner` is known, but the `value` potentially is not, e.g., it is some onchain dynamic variable. First, a **partial note** can be created during private execution that contains the `owner` and `randomness`, and then the note is *”completed”* to create a full note by later adding the `value` field, usually during public execution.
 
 <Image img={require("@site/static/img/partial-notes.png")} />
 
 ## Use Cases
 
-Partial notes are useful when a e.g., part of the note stuct is a value that depends on dynamic, public onchain data that isn't available during private execution, such as:
+Partial notes are useful when a e.g., part of the note struct is a value that depends on dynamic, public onchain data that isn't available during private execution, such as:
 
 - AMM swap prices
 - Current gas prices
@@ -123,7 +123,7 @@ fn compute_note_hash(self, storage_slot: Field) -> Field {
 
 This two-step process ensures that notes with identical field values produce identical note hashes, regardless of whether they were created as partial notes or complete notes.
 
-<Image img={require("@site/static/img/srek.jpeg")} />
+<Image img={require("@site/static/img/shrek.jpeg")} />
 
 ## Partial Notes in Practice
 
