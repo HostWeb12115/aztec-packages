@@ -249,7 +249,7 @@ export class ReadOnlyL1TxUtils {
         fixedPriorityFeePerGas: gasConfig.fixedPriorityFeePerGas,
       });
       // try to maintain precision up to 1000000 wei
-      priorityFee = BigInt(gasConfig.fixedPriorityFeePerGas * 1_000_000) * (WEI_CONST / 1_000_000n);
+      priorityFee = BigInt(Math.trunc(gasConfig.fixedPriorityFeePerGas * 1_000_000)) * (WEI_CONST / 1_000_000n);
     } else {
       // Get competitive priority fee (includes network estimate + analysis)
       priorityFee = this.getCompetitivePriorityFee(networkEstimateResult, pendingBlockResult, feeHistoryResult);
