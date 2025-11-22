@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.8](https://github.com/AztecProtocol/aztec-packages/compare/v2.1.7...v2.1.8) (2025-11-22)
+
+
+### Miscellaneous
+
+* disable playground release on v2 ([#18561](https://github.com/AztecProtocol/aztec-packages/issues/18561)) ([e9141b6](https://github.com/AztecProtocol/aztec-packages/commit/e9141b62f44caf3b6948a83b12efa3a8b3f9783c))
+
 ## [2.1.7](https://github.com/AztecProtocol/aztec-packages/compare/v2.1.6...v2.1.7) (2025-11-20)
 
 
