@@ -581,8 +581,10 @@ fn handle_foreign_call(
 /// Adds the new instruction to the avm instructions list.
 // #[oracle(avmOpcodeCall)]
 // unconstrained fn call_opcode<let N: u32>(
-//     gas: [Field; 2], // gas allocation: [l2_gas, da_gas]
+//     l2_gas_allocation: u32,
+//     da_gas_allocation: u32,
 //     address: AztecAddress,
+//     length: u32,
 //     args: [Field; N],
 // ) {}
 fn handle_external_call(
@@ -591,9 +593,9 @@ fn handle_external_call(
     inputs: &[ValueOrArray],
     opcode: AvmOpcode,
 ) {
-    if !destinations.is_empty() || inputs.len() != 4 {
+    if !destinations.is_empty() || inputs.len() != 5 {
         panic!(
-            "Transpiler expects ForeignCall (Static)Call to have 0 destinations and 4 inputs, got {} and {}.",
+            "Transpiler expects ForeignCall (Static)Call to have 0 destinations and 5 inputs, got {} and {}.",
             destinations.len(),
             inputs.len()
         );
@@ -611,7 +613,11 @@ fn handle_external_call(
         ValueOrArray::MemoryAddress(offset) => offset,
         _ => panic!("Call instruction's target address input should be a basic MemoryAddress",),
     };
-    let args = &inputs[3];
+    let args_size_offset = match &inputs[3] {
+        ValueOrArray::MemoryAddress(offset) => offset,
+        _ => panic!("Call instruction's length input should be a basic MemoryAddress"),
+    };
+    let args = &inputs[4];
     let args_offset_ptr = match args {
         ValueOrArray::HeapArray(HeapArray { pointer, size: _ }) => pointer,
         _ => panic!("Call instruction's args input should be a HeapArray input"),
@@ -624,7 +630,7 @@ fn handle_external_call(
                 .direct_operand(l2_gas_offset)
                 .direct_operand(da_gas_offset)
                 .direct_operand(address_offset)
-                // .direct_operand(args_size_offset)
+                .direct_operand(args_size_offset)
                 .indirect_operand(args_offset_ptr)
                 .build(),
         ),
@@ -632,7 +638,7 @@ fn handle_external_call(
             AvmOperand::U16 { value: l2_gas_offset.to_usize() as u16 },
             AvmOperand::U16 { value: da_gas_offset.to_usize() as u16 },
             AvmOperand::U16 { value: address_offset.to_usize() as u16 },
-            // AvmOperand::U16 { value: args_size_offset.to_usize() as u16 },
+            AvmOperand::U16 { value: args_size_offset.to_usize() as u16 },
             AvmOperand::U16 { value: args_offset_ptr.to_usize() as u16 },
         ],
         ..Default::default()

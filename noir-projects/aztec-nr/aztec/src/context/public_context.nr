@@ -867,7 +867,7 @@ unconstrained fn call<let N: u32>(
     address: AztecAddress,
     args: [Field; N],
 ) {
-    call_opcode(l2_gas_allocation, da_gas_allocation, address, args)
+    call_opcode(l2_gas_allocation, da_gas_allocation, address, N, args)
 }
 
 unconstrained fn call_static<let N: u32>(
@@ -876,7 +876,7 @@ unconstrained fn call_static<let N: u32>(
     address: AztecAddress,
     args: [Field; N],
 ) {
-    call_static_opcode(l2_gas_allocation, da_gas_allocation, address, args)
+    call_static_opcode(l2_gas_allocation, da_gas_allocation, address, N, args)
 }
 
 pub unconstrained fn calldata_copy<let N: u32>(cdoffset: u32, copy_size: u32) -> [Field; N] {
@@ -1006,6 +1006,7 @@ unconstrained fn call_opcode<let N: u32>(
     l2_gas_allocation: u32,
     da_gas_allocation: u32,
     address: AztecAddress,
+    length: u32,
     args: [Field; N],
 ) {}
 
@@ -1014,6 +1015,7 @@ unconstrained fn call_static_opcode<let N: u32>(
     l2_gas_allocation: u32,
     da_gas_allocation: u32,
     address: AztecAddress,
+    length: u32,
     args: [Field; N],
 ) {}
 
