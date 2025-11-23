@@ -174,6 +174,11 @@ locals {
         "validator.node.secret.envEnabled"                         = true
         "validator.node.secret.mnemonic"                           = var.VALIDATOR_MNEMONIC
         "validator.node.secret.mnemonicIndex"                      = var.VALIDATOR_MNEMONIC_START_INDEX
+        "validator.node.env.P2P_GOSSIPSUB_D"                       = var.P2P_GOSSIPSUB_D
+        "validator.node.env.P2P_GOSSIPSUB_DLO"                     = var.P2P_GOSSIPSUB_DLO
+        "validator.node.env.P2P_GOSSIPSUB_DHI"                     = var.P2P_GOSSIPSUB_DHI
+        "validator.node.env.P2P_DROP_TX"                           = var.P2P_DROP_TX
+        "validator.node.env.P2P_DROP_TX_CHANCE"                    = var.P2P_DROP_TX_CHANCE
       }
       boot_node_host_path  = "validator.node.env.BOOT_NODE_HOST"
       bootstrap_nodes_path = "validator.node.env.BOOTSTRAP_NODES"
@@ -220,6 +225,11 @@ locals {
           "node.node.env.P2P_MAX_TX_POOL_SIZE"                  = var.P2P_MAX_TX_POOL_SIZE
           "node.node.env.PROVER_TEST_VERIFICATION_DELAY_MS"     = var.PROVER_TEST_VERIFICATION_DELAY_MS
           "node.node.env.DEBUG_P2P_INSTRUMENT_MESSAGES"         = var.DEBUG_P2P_INSTRUMENT_MESSAGES
+          "node.node.env.P2P_GOSSIPSUB_D"                       = var.P2P_GOSSIPSUB_D
+          "node.node.env.P2P_GOSSIPSUB_DLO"                     = var.P2P_GOSSIPSUB_DLO
+          "node.node.env.P2P_GOSSIPSUB_DHI"                     = var.P2P_GOSSIPSUB_DHI
+          "node.node.env.P2P_DROP_TX"                           = var.P2P_DROP_TX
+          "node.node.env.P2P_DROP_TX_CHANCE"                    = var.P2P_DROP_TX_CHANCE
         },
         # Only set web3signerUrl if proof publishing is enabled
         !var.PROVER_NODE_DISABLE_PROOF_PUBLISH ? {
@@ -275,6 +285,11 @@ locals {
         "node.env.P2P_MAX_TX_POOL_SIZE"               = var.P2P_MAX_TX_POOL_SIZE
         "node.env.PROVER_TEST_VERIFICATION_DELAY_MS"  = var.PROVER_TEST_VERIFICATION_DELAY_MS
         "node.env.DEBUG_P2P_INSTRUMENT_MESSAGES"      = var.DEBUG_P2P_INSTRUMENT_MESSAGES
+        "node.env.P2P_GOSSIPSUB_D"                    = var.P2P_GOSSIPSUB_D
+        "node.env.P2P_GOSSIPSUB_DLO"                  = var.P2P_GOSSIPSUB_DLO
+        "node.env.P2P_GOSSIPSUB_DHI"                  = var.P2P_GOSSIPSUB_DHI
+        "node.env.P2P_DROP_TX"                        = var.P2P_DROP_TX
+        "node.env.P2P_DROP_TX_CHANCE"                 = var.P2P_DROP_TX_CHANCE
         },
         # Only set RPC mnemonic config in fisherman mode)
         var.FISHERMAN_MODE ? {
@@ -314,6 +329,11 @@ locals {
         "node.env.PROVER_TEST_VERIFICATION_DELAY_MS"  = var.PROVER_TEST_VERIFICATION_DELAY_MS
         "node.env.DEBUG_P2P_INSTRUMENT_MESSAGES"      = var.DEBUG_P2P_INSTRUMENT_MESSAGES
         "node.otelIncludeMetrics"                     = var.FULL_NODE_INCLUDE_METRICS
+        "node.env.P2P_GOSSIPSUB_D"                    = var.P2P_GOSSIPSUB_D
+        "node.env.P2P_GOSSIPSUB_DLO"                  = var.P2P_GOSSIPSUB_DLO
+        "node.env.P2P_GOSSIPSUB_DHI"                  = var.P2P_GOSSIPSUB_DHI
+        "node.env.P2P_DROP_TX"                        = var.P2P_DROP_TX
+        "node.env.P2P_DROP_TX_CHANCE"                 = var.P2P_DROP_TX_CHANCE
       }
       boot_node_host_path  = "node.env.BOOT_NODE_HOST"
       bootstrap_nodes_path = "node.env.BOOTSTRAP_NODES"
@@ -337,6 +357,11 @@ locals {
         "node.env.P2P_TX_POOL_DELETE_TXS_AFTER_REORG" = var.P2P_TX_POOL_DELETE_TXS_AFTER_REORG
         "node.env.BLOB_ALLOW_EMPTY_SOURCES"           = var.BLOB_ALLOW_EMPTY_SOURCES
         "node.env.P2P_MAX_TX_POOL_SIZE"               = var.P2P_MAX_TX_POOL_SIZE
+        "node.env.P2P_GOSSIPSUB_D"                    = var.P2P_GOSSIPSUB_D
+        "node.env.P2P_GOSSIPSUB_DLO"                  = var.P2P_GOSSIPSUB_DLO
+        "node.env.P2P_GOSSIPSUB_DHI"                  = var.P2P_GOSSIPSUB_DHI
+        "node.env.P2P_DROP_TX"                        = var.P2P_DROP_TX
+        "node.env.P2P_DROP_TX_CHANCE"                 = var.P2P_DROP_TX_CHANCE
       }
       boot_node_host_path  = "node.env.BOOT_NODE_HOST"
       bootstrap_nodes_path = "node.env.BOOTSTRAP_NODES"

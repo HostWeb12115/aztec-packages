@@ -3,13 +3,13 @@ node:
   node:
     resources:
       requests:
-        cpu: "1.6"
-        memory: "5Gi"
+        cpu: "3"
+        memory: "10Gi"
 
   nodeSelector:
     local-ssd: "false"
     node-type: "network"
-    cores: "2"
+    cores: "4"
 
   affinity:
     podAntiAffinity:
@@ -41,7 +41,7 @@ broker:
   nodeSelector:
     local-ssd: "false"
     node-type: "network"
-    cores: "2"
+    cores: "4"
 
   persistence:
     enabled: true
@@ -57,9 +57,9 @@ broker:
   node:
     resources:
       requests:
-        # should land on a 2-core node
-        cpu: "1.6"
-        memory: "5Gi"
+        # should land on a 4-core node
+        cpu: "3"
+        memory: "10Gi"
 
 agent:
   replicaCount: 4

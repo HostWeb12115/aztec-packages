@@ -2,7 +2,6 @@ import type { EpochCacheInterface } from '@aztec/epoch-cache';
 import { randomInt } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { type Logger, createLibp2pComponentLogger, createLogger } from '@aztec/foundation/log';
-import { SerialQueue } from '@aztec/foundation/queue';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { Timer } from '@aztec/foundation/timer';
 import type { AztecAsyncKVStore } from '@aztec/kv-store';
@@ -121,7 +120,6 @@ type ReceivedMessageValidationResult<T> =
  * Lib P2P implementation of the P2PService interface.
  */
 export class LibP2PService<T extends P2PClientType = P2PClientType.Full> extends WithTracer implements P2PService {
-  private jobQueue: SerialQueue = new SerialQueue();
   private discoveryRunningPromise?: RunningPromise;
   private msgIdSeenValidators: Record<TopicType, MessageSeenValidator> = {} as Record<TopicType, MessageSeenValidator>;
 
@@ -463,9 +461,6 @@ export class LibP2PService<T extends P2PClientType = P2PClientType.Full> extends
     }
     const announceTcpMultiaddr = convertToMultiaddr(p2pIp, p2pPort, 'tcp');
 
-    // Start job queue, peer discovery service and libp2p node
-    this.jobQueue.start();
-
     await this.peerManager.initializePeers();
     if (!this.config.p2pDiscoveryDisabled) {
       await this.peerDiscoveryService.start();
@@ -540,9 +535,6 @@ export class LibP2PService<T extends P2PClientType = P2PClientType.Full> extends
     // Stop peer manager
     this.logger.debug('Stopping peer manager...');
     await this.peerManager.stop();
-
-    this.logger.debug('Stopping job queue...');
-    await this.jobQueue.end();
     this.logger.debug('Stopping running promise...');
     await this.discoveryRunningPromise?.stop();
     this.logger.debug('Stopping peer discovery service...');
@@ -998,13 +990,9 @@ export class LibP2PService<T extends P2PClientType = P2PClientType.Full> extends
   public async propagate<T extends Gossipable>(message: T) {
     const p2pMessageIdentifier = await message.p2pMessageLoggingIdentifier();
     this.logger.trace(`Message ${p2pMessageIdentifier} queued`, { p2pMessageIdentifier });
-    void this.jobQueue
-      .put(async () => {
-        await this.sendToPeers(message);
-      })
-      .catch(error => {
-        this.logger.error(`Error propagating message ${p2pMessageIdentifier}`, { error });
-      });
+    void this.sendToPeers(message).catch(error => {
+      this.logger.error(`Error propagating message ${p2pMessageIdentifier}`, { error });
+    });
   }
 
   /**

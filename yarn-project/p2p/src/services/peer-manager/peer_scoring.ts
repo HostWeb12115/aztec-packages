@@ -3,7 +3,6 @@ import { createLogger } from '@aztec/foundation/log';
 import { PeerErrorSeverity } from '@aztec/stdlib/p2p';
 import {
   Attributes,
-  type Histogram,
   Metrics,
   type TelemetryClient,
   type UpDownCounter,
@@ -39,7 +38,6 @@ export class PeerScoring {
   private decayFactor = 0.9;
   peerPenalties: { [key in PeerErrorSeverity]: number };
 
-  private aggScoreHistogram: Histogram;
   private peerStateCounter: UpDownCounter;
 
   constructor(config: P2PConfig, telemetry: TelemetryClient = getTelemetryClient()) {
@@ -54,11 +52,6 @@ export class PeerScoring {
     };
 
     const meter = telemetry.getMeter('PeerScoring');
-
-    this.aggScoreHistogram = meter.createHistogram(Metrics.P2P_GOSSIP_APP_PEER_SCORE, {
-      valueType: ValueType.DOUBLE,
-      description: 'Application peer score histogram',
-    });
 
     this.peerStateCounter = meter.createUpDownCounter(Metrics.P2P_PEER_STATE_COUNT, {
       description: 'Count of peers by state (Healthy, Disconnect, Banned)',
@@ -104,16 +97,6 @@ export class PeerScoring {
         this.scores.set(peerId, score);
         this.lastUpdateTime.set(peerId, currentTime);
       }
-    }
-
-    // Update aggregate histogram after decay
-    this.updateAggregateScores();
-  }
-
-  private updateAggregateScores(): void {
-    // Record all current scores to the histogram
-    for (const score of this.scores.values()) {
-      this.aggScoreHistogram.record(score);
     }
   }
 

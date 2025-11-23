@@ -132,8 +132,6 @@ export const P2P_REQ_RESP_FAILED_INBOUND_REQUESTS = 'aztec.p2p.req_resp.failed_i
 export const P2P_GOSSIP_MESSAGE_VALIDATION_DURATION = 'aztec.p2p.gossip.message_validation_duration';
 export const P2P_GOSSIP_MESSAGE_PREVALIDATION_COUNT = 'aztec.p2p.gossip.message_validation_count';
 export const P2P_GOSSIP_MESSAGE_LATENCY = 'aztec.p2p.gossip.message_latency';
-export const P2P_GOSSIP_APP_PEER_SCORE = 'aztec.p2p.gossip.app_peer_score';
-export const P2P_GOSSIP_GSUB_PEER_SCORE = 'aztec.p2p.gossip.gsub_peer_score';
 export const P2P_GOSSIP_TX_RECEIVED_COUNT = 'aztec.p2p.gossip.tx_received_count';
 
 export const P2P_GOSSIP_AGG_MESSAGE_LATENCY_MIN = 'aztec.p2p.gossip.agg_message_latency_min';

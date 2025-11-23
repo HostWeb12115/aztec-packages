@@ -592,3 +592,33 @@ variable "FISHERMAN_MODE" {
   type        = bool
   default     = false
 }
+
+variable "P2P_GOSSIPSUB_D" {
+  description = "The P2P Gossipsub D parameter"
+  type        = string
+  default     = "6"
+}
+
+variable "P2P_GOSSIPSUB_DLO" {
+  description = "The P2P Gossipsub D parameter"
+  type        = string
+  default     = "4"
+}
+
+variable "P2P_GOSSIPSUB_DHI" {
+  description = "The P2P Gossipsub D parameter"
+  type        = string
+  default     = "12"
+}
+
+variable "P2P_DROP_TX" {
+  description = "Whether to randomly drop incoming transactions in the P2P layer (for testing)"
+  type        = bool
+  default     = false
+}
+
+variable "P2P_DROP_TX_CHANCE" {
+  description = "The chance (0-100) of dropping an incoming transaction in the P2P layer (for testing)"
+  type        = string
+  default     = "0"
+}

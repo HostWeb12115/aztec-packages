@@ -412,7 +412,7 @@ export const p2pConfigMappings: ConfigMappingsType<P2PConfig> = {
   },
   dropTransactionsProbability: {
     env: 'P2P_DROP_TX_CHANCE',
-    description: 'The probability that a transaction is discarded. - For testing purposes only',
+    description: 'The probability that a transaction is discarded (0 - 1). - For testing purposes only',
     ...floatConfigHelper(0),
   },
   disableTransactions: {
